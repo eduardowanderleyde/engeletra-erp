@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Engeletra ERP</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">E</div>
+      <div>
+        <strong>Engeletra ERP</strong>
+        <span>Operação elétrica industrial</span>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Módulos">
+      <button class="nav-item active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+      <button class="nav-item" data-view="orcamentos"><span>▣</span> Orçamentos</button>
+      <button class="nav-item" data-view="ordens"><span>✓</span> Ordens de Serviço</button>
+      <button class="nav-item" data-view="clientes"><span>◆</span> Clientes</button>
+      <button class="nav-item" data-view="equipamentos"><span>⚙</span> Equipamentos</button>
+      <button class="nav-item" data-view="estoque"><span>▦</span> Estoque</button>
+      <button class="nav-item" data-view="financeiro"><span>$</span> Financeiro</button>
+      <button class="nav-item" data-view="configuracoes"><span>◉</span> Configurações</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button id="seedDemo" class="ghost-btn">Carregar exemplo</button>
+      <button id="exportData" class="ghost-btn">Exportar dados</button>
+    </div>
+  </aside>
+
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow" id="pageEyebrow">Software local</p>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p class="page-subtitle" id="pageSubtitle">Visão executiva da operação técnica, comercial e financeira.</p>
+      </div>
+      <div class="top-actions">
+        <label class="search">
+          <span>⌕</span>
+          <input id="globalSearch" type="search" placeholder="Buscar cliente, OS, orçamento">
+        </label>
+        <button id="newRecord" class="primary-btn">Novo registro</button>
+      </div>
+    </header>
+
+    <section id="dashboard" class="view active">
+      <div class="kpi-grid">
+        <article class="kpi"><span>OS abertas</span><strong id="kpiOpenOs">0</strong></article>
+        <article class="kpi"><span>Em andamento</span><strong id="kpiProgressOs">0</strong></article>
+        <article class="kpi"><span>Faturamento</span><strong id="kpiRevenue">R$ 0,00</strong></article>
+        <article class="kpi"><span>Orçamentos pendentes</span><strong id="kpiQuotes">0</strong></article>
+      </div>
+      <div class="dashboard-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Agenda operacional</h2>
+            <span id="fieldTeams">0 equipes em campo</span>
+          </div>
+          <div id="agendaList" class="timeline"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Receita por cliente</h2>
+            <span>mês atual</span>
+          </div>
+          <div id="revenueBars" class="bars"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="orcamentos" class="view">
+      <div class="content-grid">
+        <form id="quoteForm" class="panel form-panel">
+          <h2>Orçamento Técnico</h2>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Cliente<select name="cliente" required></select></label>
+            <label>Status<select name="status"><option>Rascunho</option><option>Enviado</option><option>Aprovado</option><option>Reprovado</option></select></label>
+            <label>Quantidade de pessoas<input name="pessoas" type="number" min="1" value="2"></label>
+            <label>Horas previstas<input name="horas" type="number" min="0" step="0.5" value="8"></label>
+            <label>KM rodado<input name="km" type="number" min="0" step="1" value="0"></label>
+            <label>Tipo de veículo<select name="veiculo"><option>Carro</option><option>Munck</option><option>Outros</option></select></label>
+            <label>Valor hora técnica<input name="valorHora" type="number" min="0" step="0.01"></label>
+            <label>Valor KM<input name="valorKm" type="number" min="0" step="0.01"></label>
+            <label>Materiais previstos<input name="materiais" type="number" min="0" step="0.01" value="0"></label>
+            <label>Adicional Munck<input name="munck" type="number" min="0" step="0.01"></label>
+          </div>
+          <label>Observações<textarea name="observacoes" rows="4"></textarea></label>
+          <div class="total-line"><span>Total calculado</span><strong id="quoteTotal">R$ 0,00</strong></div>
+          <div class="button-row">
+            <button type="reset" class="secondary-btn">Limpar</button>
+            <button type="submit" class="primary-btn">Salvar orçamento</button>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Propostas</h2>
+            <span>Aprovar gera OS</span>
+          </div>
+          <div id="quotesTable" class="table-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="ordens" class="view">
+      <div class="content-grid">
+        <form id="serviceOrderForm" class="panel form-panel">
+          <h2>Ordem de Serviço</h2>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Cliente<select name="cliente" required></select></label>
+            <label>Equipamento<select name="equipamento"></select></label>
+            <label>Técnico responsável<input name="tecnico" placeholder="Nome do técnico"></label>
+            <label>Status<select name="status"><option>Aberto</option><option>Em andamento</option><option>Concluído</option><option>Cancelado</option></select></label>
+            <label>Data agendada<input name="dataAgendada" type="datetime-local"></label>
+            <label>Horas reais<input name="horasReais" type="number" min="0" step="0.5"></label>
+            <label>KM real<input name="kmReal" type="number" min="0" step="1"></label>
+            <label>Valor real<input name="valorReal" type="number" min="0" step="0.01"></label>
+          </div>
+          <label>Checklist<textarea name="checklist" rows="4" placeholder="Ex: limpeza, reaperto, inspeção visual"></textarea></label>
+          <label>Materiais usados<textarea name="materiais" rows="3" placeholder="Ex: óleo isolante 20L, fusível NH"></textarea></label>
+          <div class="button-row">
+            <button type="reset" class="secondary-btn">Limpar</button>
+            <button type="submit" class="primary-btn">Salvar OS</button>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Execução</h2>
+            <span>Concluir gera cobrança</span>
+          </div>
+          <div id="ordersTable" class="table-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="clientes" class="view">
+      <div class="content-grid">
+        <form id="clientForm" class="panel form-panel">
+          <h2>Cliente</h2>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Razão social<input name="razao" required></label>
+            <label>Nome fantasia<input name="fantasia"></label>
+            <label>CNPJ<input name="cnpj"></label>
+            <label>Cidade<input name="cidade"></label>
+            <label>Estado<input name="estado" maxlength="2"></label>
+            <label>Responsável<input name="responsavel"></label>
+            <label>Telefone<input name="telefone"></label>
+            <label>Email<input name="email" type="email"></label>
+            <label>SLA<select name="sla"><option>Normal</option><option>24h</option><option>48h</option><option>Contrato</option></select></label>
+          </div>
+          <label>Histórico<textarea name="historico" rows="3"></textarea></label>
+          <div class="button-row">
+            <button type="reset" class="secondary-btn">Limpar</button>
+            <button type="submit" class="primary-btn">Salvar cliente</button>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="panel-head"><h2>Carteira</h2><span id="clientCount">0 clientes</span></div>
+          <div id="clientsTable" class="table-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="equipamentos" class="view">
+      <div class="content-grid">
+        <form id="equipmentForm" class="panel form-panel">
+          <h2>Equipamento</h2>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Cliente<select name="cliente" required></select></label>
+            <label>Tipo<select name="tipo"><option>Transformador</option><option>Subestação</option><option>Painel</option><option>Motor</option><option>Outro</option></select></label>
+            <label>Número de série<input name="serie"></label>
+            <label>Potência<input name="potencia"></label>
+            <label>Classe de tensão<input name="tensao"></label>
+            <label>Fabricante<input name="fabricante"></label>
+            <label>Ano fabricação<input name="ano" type="number"></label>
+            <label>Localização<input name="localizacao"></label>
+            <label>Última manutenção<input name="ultima" type="date"></label>
+            <label>Próxima manutenção<input name="proxima" type="date"></label>
+          </div>
+          <div class="button-row">
+            <button type="reset" class="secondary-btn">Limpar</button>
+            <button type="submit" class="primary-btn">Salvar equipamento</button>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="panel-head"><h2>Ativos técnicos</h2><span>preventivas e histórico</span></div>
+          <div id="equipmentTable" class="table-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="estoque" class="view">
+      <div class="content-grid">
+        <form id="stockForm" class="panel form-panel">
+          <h2>Material / Peça</h2>
+          <input type="hidden" name="id">
+          <div class="form-grid">
+            <label>Item<input name="item" required></label>
+            <label>Categoria<select name="categoria"><option>Cabos</option><option>Fusíveis</option><option>Óleo isolante</option><option>EPIs</option><option>Ferramentas</option><option>Componentes elétricos</option></select></label>
+            <label>Unidade<input name="unidade" value="un"></label>
+            <label>Saldo<input name="saldo" type="number" step="0.01" value="0"></label>
+            <label>Estoque mínimo<input name="minimo" type="number" step="0.01" value="0"></label>
+            <label>Custo unitário<input name="custo" type="number" step="0.01" value="0"></label>
+          </div>
+          <div class="button-row">
+            <button type="reset" class="secondary-btn">Limpar</button>
+            <button type="submit" class="primary-btn">Salvar item</button>
+          </div>
+        </form>
+        <section class="panel">
+          <div class="panel-head"><h2>Almoxarifado</h2><span>mínimos destacados</span></div>
+          <div id="stockTable" class="table-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="financeiro" class="view">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Faturas</h2>
+          <span>geradas por OS concluída</span>
+        </div>
+        <div id="invoiceTable" class="table-list"></div>
+      </section>
+    </section>
+
+    <section id="configuracoes" class="view">
+      <form id="settingsForm" class="panel form-panel narrow">
+        <h2>Parâmetros comerciais</h2>
+        <div class="form-grid">
+          <label>Valor hora técnica padrão<input name="valorHora" type="number" step="0.01"></label>
+          <label>Valor KM padrão<input name="valorKm" type="number" step="0.01"></label>
+          <label>Adicional Munck padrão<input name="munck" type="number" step="0.01"></label>
+          <label>Prazo vencimento padrão<input name="prazo" type="number" step="1"></label>
+        </div>
+        <div class="button-row">
+          <button type="submit" class="primary-btn">Salvar configurações</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="assets/app.js"></script>
+</body>
+</html>

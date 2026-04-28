@@ -1,0 +1,14 @@
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+*.db
+*.db-shm
+*.db-wal
+frontend/dist
+dist
+desktop
+docs
+/package.json
+/package-lock.json

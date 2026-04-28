@@ -4,11 +4,12 @@ from datetime import date, timedelta
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .database import connect, init_db, row_to_dict, rows_to_dicts
 from .security import LocalApiTokenMiddleware
 from .schemas import ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn
-from .settings import ALLOWED_ORIGINS
+from .settings import ALLOWED_ORIGINS, STATIC_DIR
 
 app = FastAPI(title="Engeletra ERP API", version="0.2.0")
 
@@ -243,3 +244,7 @@ def create_stock_item(data: StockItemIn):
             (data.item, data.categoria, data.unidade, data.saldo, data.minimo, data.custo),
         )
         return row_to_dict(conn.execute("SELECT * FROM stock_items WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+if STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")

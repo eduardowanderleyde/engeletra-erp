@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parents[2] / "engeletra.db"
+from .settings import DATA_DIR, DB_PATH
 
 
 def connect() -> sqlite3.Connection:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
@@ -102,6 +105,14 @@ def init_db() -> None:
                 minimo REAL DEFAULT 0,
                 custo REAL DEFAULT 0
             );
+
+            CREATE INDEX IF NOT EXISTS idx_equipment_client_id ON equipment(client_id);
+            CREATE INDEX IF NOT EXISTS idx_quotes_client_id ON quotes(client_id);
+            CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
+            CREATE INDEX IF NOT EXISTS idx_service_orders_client_id ON service_orders(client_id);
+            CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status);
+            CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
+            CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
             """
         )
 

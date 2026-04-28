@@ -6,16 +6,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import connect, init_db, row_to_dict, rows_to_dicts
+from .security import LocalApiTokenMiddleware
 from .schemas import ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn
+from .settings import ALLOWED_ORIGINS
 
 app = FastAPI(title="Engeletra ERP API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LocalApiTokenMiddleware)
 
 
 @app.on_event("startup")
@@ -24,6 +27,8 @@ def startup():
 
 
 def next_code(table: str, prefix: str) -> str:
+    # Codes are readable business identifiers. The numeric database id remains
+    # the canonical key, while ORC/OS/FAT codes are shown to users and clients.
     with connect() as conn:
         row = conn.execute(f"SELECT COUNT(*) AS total FROM {table}").fetchone()
         return f"{prefix}-{int(row['total']) + 1:04d}"

@@ -11,6 +11,12 @@ Versao desktop profissional do Engeletra ERP, pensada para gerar instaladores de
 
 O usuario final nao abre navegador. O Electron abre uma janela de aplicativo e conversa com o backend Python local.
 
+As decisões de segurança, banco de dados, escala e custo zero ficam em:
+
+```text
+docs/arquitetura-seguranca.md
+```
+
 ## Estrutura
 
 ```text

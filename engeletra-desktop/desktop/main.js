@@ -6,9 +6,11 @@ let backendProcess;
 
 function startBackend() {
   const backendDir = path.join(__dirname, "..", "backend");
-  const python = process.platform === "win32" ? "python" : "python3";
+  const venvPython = process.platform === "win32"
+    ? path.join(backendDir, ".venv3", "Scripts", "python.exe")
+    : path.join(backendDir, ".venv3", "bin", "python");
   backendProcess = spawn(
-    python,
+    venvPython,
     ["-m", "uvicorn", "engeletra_api.main:app", "--host", "127.0.0.1", "--port", "8787"],
     { cwd: backendDir, stdio: "ignore" }
   );

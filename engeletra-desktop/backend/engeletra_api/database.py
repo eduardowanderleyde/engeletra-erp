@@ -245,6 +245,121 @@ def init_db() -> None:
                 created_at   TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- ─── Fornecedores ─────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS fornecedores (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                razao       TEXT NOT NULL,
+                fantasia    TEXT,
+                cnpj        TEXT,
+                categoria   TEXT,
+                telefone    TEXT,
+                email       TEXT,
+                contato     TEXT,
+                observacao  TEXT,
+                created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Despesas ─────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS despesas (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                descricao       TEXT NOT NULL,
+                categoria       TEXT DEFAULT 'Outros',
+                valor           REAL DEFAULT 0,
+                data            TEXT NOT NULL,
+                data_vencimento TEXT,
+                data_pagamento  TEXT,
+                status          TEXT DEFAULT 'Pendente',
+                obra_id         INTEGER REFERENCES obras(id) ON DELETE SET NULL,
+                fornecedor      TEXT,
+                documento       TEXT,
+                observacao      TEXT,
+                created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Contas Bancárias ──────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS contas_bancarias (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                banco       TEXT NOT NULL,
+                agencia     TEXT,
+                conta       TEXT,
+                tipo        TEXT DEFAULT 'Corrente',
+                saldo_atual REAL DEFAULT 0,
+                ativo       INTEGER DEFAULT 1
+            );
+
+            -- ─── Controle de Ponto ────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS ponto (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                tecnico_id   INTEGER NOT NULL REFERENCES tecnicos(id) ON DELETE RESTRICT,
+                data         TEXT NOT NULL,
+                entrada      TEXT,
+                almoco_saida TEXT,
+                almoco_volta TEXT,
+                saida        TEXT,
+                tipo         TEXT DEFAULT 'Normal',
+                horas_extras REAL DEFAULT 0,
+                observacao   TEXT,
+                created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Folha de Pagamento ───────────────────────────────────
+            CREATE TABLE IF NOT EXISTS folha (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                tecnico_id    INTEGER NOT NULL REFERENCES tecnicos(id) ON DELETE RESTRICT,
+                mes           INTEGER NOT NULL,
+                ano           INTEGER NOT NULL,
+                salario_base  REAL DEFAULT 0,
+                horas_extras  REAL DEFAULT 0,
+                valor_extras  REAL DEFAULT 0,
+                total_bruto   REAL DEFAULT 0,
+                descontos     REAL DEFAULT 0,
+                total_liquido REAL DEFAULT 0,
+                status        TEXT DEFAULT 'Pendente',
+                observacao    TEXT,
+                created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Pedidos de Compra ────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS pedidos_compra (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                code         TEXT UNIQUE NOT NULL,
+                fornecedor   TEXT,
+                data         TEXT NOT NULL,
+                data_entrega TEXT,
+                status       TEXT DEFAULT 'Rascunho',
+                obra_id      INTEGER REFERENCES obras(id) ON DELETE SET NULL,
+                descricao    TEXT,
+                valor_total  REAL DEFAULT 0,
+                observacao   TEXT,
+                created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Manutenção de Frota ──────────────────────────────────
+            CREATE TABLE IF NOT EXISTS frota_manutencao (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                veiculo_id  INTEGER NOT NULL REFERENCES veiculos(id) ON DELETE RESTRICT,
+                tipo        TEXT DEFAULT 'Preventiva',
+                data        TEXT NOT NULL,
+                km          REAL DEFAULT 0,
+                descricao   TEXT,
+                valor       REAL DEFAULT 0,
+                status      TEXT DEFAULT 'Realizada',
+                observacao  TEXT,
+                created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- ─── Cronograma ───────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS cronograma (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                tecnico_id  INTEGER NOT NULL REFERENCES tecnicos(id) ON DELETE RESTRICT,
+                obra_id     INTEGER REFERENCES obras(id) ON DELETE SET NULL,
+                data_inicio TEXT NOT NULL,
+                data_fim    TEXT,
+                tipo        TEXT DEFAULT 'Servico',
+                descricao   TEXT,
+                created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- ─── Índices ──────────────────────────────────────────────
             CREATE INDEX IF NOT EXISTS idx_equipment_client      ON equipment(client_id);
             CREATE INDEX IF NOT EXISTS idx_quotes_client         ON quotes(client_id);
@@ -260,6 +375,14 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_ensaios_obra          ON ensaios(obra_id);
             CREATE INDEX IF NOT EXISTS idx_frota_km_veiculo      ON frota_km(veiculo_id);
             CREATE INDEX IF NOT EXISTS idx_frota_km_data         ON frota_km(data);
+            CREATE INDEX IF NOT EXISTS idx_despesas_status       ON despesas(status);
+            CREATE INDEX IF NOT EXISTS idx_despesas_obra         ON despesas(obra_id);
+            CREATE INDEX IF NOT EXISTS idx_ponto_tecnico         ON ponto(tecnico_id);
+            CREATE INDEX IF NOT EXISTS idx_ponto_data            ON ponto(data);
+            CREATE INDEX IF NOT EXISTS idx_folha_tecnico         ON folha(tecnico_id);
+            CREATE INDEX IF NOT EXISTS idx_pedidos_status        ON pedidos_compra(status);
+            CREATE INDEX IF NOT EXISTS idx_frota_manut_veiculo   ON frota_manutencao(veiculo_id);
+            CREATE INDEX IF NOT EXISTS idx_cronograma_tecnico    ON cronograma(tecnico_id);
             """
         )
         _migrate(conn)

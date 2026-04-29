@@ -43,10 +43,6 @@ export const api = {
     finish: id   => req('POST', `/service-orders/${id}/finish`),
   },
 
-  invoices: {
-    list: () => req('GET', '/invoices'),
-  },
-
   stock: {
     list:   ()  => req('GET',  '/stock'),
     create: d   => req('POST', '/stock', d),
@@ -81,5 +77,66 @@ export const api = {
   frotaKm: {
     list:   () => req('GET',  '/frota-km'),
     create: d  => req('POST', '/frota-km', d),
+  },
+
+  invoices: {
+    list:   ()       => req('GET',  '/invoices'),
+    update: (id, d)  => req('PUT',  `/invoices/${id}`, d),
+  },
+
+  fornecedores: {
+    list:   ()       => req('GET',    '/fornecedores'),
+    create: d        => req('POST',   '/fornecedores', d),
+    update: (id, d)  => req('PUT',    `/fornecedores/${id}`, d),
+    delete: id       => req('DELETE', `/fornecedores/${id}`),
+  },
+
+  despesas: {
+    list:   ()       => req('GET',    '/despesas'),
+    create: d        => req('POST',   '/despesas', d),
+    update: (id, d)  => req('PUT',    `/despesas/${id}`, d),
+    delete: id       => req('DELETE', `/despesas/${id}`),
+  },
+
+  contas: {
+    list:   ()       => req('GET',    '/contas-bancarias'),
+    create: d        => req('POST',   '/contas-bancarias', d),
+    update: (id, d)  => req('PUT',    `/contas-bancarias/${id}`, d),
+    delete: id       => req('DELETE', `/contas-bancarias/${id}`),
+  },
+
+  ponto: {
+    list:   ()       => req('GET',    '/ponto'),
+    create: d        => req('POST',   '/ponto', d),
+    update: (id, d)  => req('PUT',    `/ponto/${id}`, d),
+    delete: id       => req('DELETE', `/ponto/${id}`),
+  },
+
+  folha: {
+    list:   ()       => req('GET',    '/folha'),
+    create: d        => req('POST',   '/folha', d),
+    update: (id, d)  => req('PUT',    `/folha/${id}`, d),
+    delete: id       => req('DELETE', `/folha/${id}`),
+  },
+
+  pedidos: {
+    list:   ()       => req('GET',    '/pedidos-compra'),
+    create: d        => req('POST',   '/pedidos-compra', d),
+    update: (id, d)  => req('PUT',    `/pedidos-compra/${id}`, d),
+    delete: id       => req('DELETE', `/pedidos-compra/${id}`),
+  },
+
+  frotaManut: {
+    list:   ()       => req('GET',    '/frota-manutencao'),
+    create: d        => req('POST',   '/frota-manutencao', d),
+    update: (id, d)  => req('PUT',    `/frota-manutencao/${id}`, d),
+    delete: id       => req('DELETE', `/frota-manutencao/${id}`),
+  },
+
+  cronograma: {
+    list:   ()       => req('GET',    '/cronograma'),
+    create: d        => req('POST',   '/cronograma', d),
+    update: (id, d)  => req('PUT',    `/cronograma/${id}`, d),
+    delete: id       => req('DELETE', `/cronograma/${id}`),
   },
 }

@@ -11,6 +11,8 @@ from .security import LocalApiTokenMiddleware
 from .schemas import (
     ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn,
     ObraIn, TecnicoIn, EnsaioIn, VeiculoIn, FrotaKmIn,
+    FornecedorIn, DespesaIn, ContaBancariaIn, PontoIn, FolhaIn,
+    PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn,
 )
 from .settings import ALLOWED_ORIGINS, STATIC_DIR
 
@@ -443,6 +445,326 @@ def create_frota_km(data: FrotaKmIn):
         )
         conn.execute("UPDATE veiculos SET km_atual=? WHERE id=? AND km_atual < ?", (data.km_final, data.veiculo_id, data.km_final))
         return row_to_dict(conn.execute("SELECT * FROM frota_km WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+# ─── Invoices (update) ────────────────────────────────────────────────────────
+
+@app.put("/invoices/{invoice_id}")
+def update_invoice(invoice_id: int, data: InvoiceUpdateIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE invoices SET status=?, numero_nf=?, data_recebimento=? WHERE id=?",
+            (data.status, data.numero_nf, data.data_recebimento, invoice_id),
+        )
+        row = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Fatura não encontrada")
+        return row_to_dict(row)
+
+
+# ─── Fornecedores ─────────────────────────────────────────────────────────────
+
+@app.get("/fornecedores")
+def list_fornecedores():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM fornecedores ORDER BY fantasia, razao").fetchall())
+
+
+@app.post("/fornecedores")
+def create_fornecedor(data: FornecedorIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO fornecedores (razao,fantasia,cnpj,categoria,telefone,email,contato,observacao) VALUES (?,?,?,?,?,?,?,?)",
+            (data.razao, data.fantasia, data.cnpj, data.categoria, data.telefone, data.email, data.contato, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM fornecedores WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/fornecedores/{forn_id}")
+def update_fornecedor(forn_id: int, data: FornecedorIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE fornecedores SET razao=?,fantasia=?,cnpj=?,categoria=?,telefone=?,email=?,contato=?,observacao=? WHERE id=?",
+            (data.razao, data.fantasia, data.cnpj, data.categoria, data.telefone, data.email, data.contato, data.observacao, forn_id),
+        )
+        row = conn.execute("SELECT * FROM fornecedores WHERE id=?", (forn_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Fornecedor não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/fornecedores/{forn_id}")
+def delete_fornecedor(forn_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM fornecedores WHERE id=?", (forn_id,))
+        return {"deleted": True}
+
+
+# ─── Despesas ─────────────────────────────────────────────────────────────────
+
+@app.get("/despesas")
+def list_despesas():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM despesas ORDER BY data DESC, id DESC").fetchall())
+
+
+@app.post("/despesas")
+def create_despesa(data: DespesaIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO despesas (descricao,categoria,valor,data,data_vencimento,data_pagamento,status,obra_id,fornecedor,documento,observacao) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (data.descricao, data.categoria, data.valor, data.data, data.data_vencimento, data.data_pagamento, data.status, data.obra_id, data.fornecedor, data.documento, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM despesas WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/despesas/{desp_id}")
+def update_despesa(desp_id: int, data: DespesaIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE despesas SET descricao=?,categoria=?,valor=?,data=?,data_vencimento=?,data_pagamento=?,status=?,obra_id=?,fornecedor=?,documento=?,observacao=? WHERE id=?",
+            (data.descricao, data.categoria, data.valor, data.data, data.data_vencimento, data.data_pagamento, data.status, data.obra_id, data.fornecedor, data.documento, data.observacao, desp_id),
+        )
+        row = conn.execute("SELECT * FROM despesas WHERE id=?", (desp_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Despesa não encontrada")
+        return row_to_dict(row)
+
+
+@app.delete("/despesas/{desp_id}")
+def delete_despesa(desp_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM despesas WHERE id=?", (desp_id,))
+        return {"deleted": True}
+
+
+# ─── Contas Bancárias ─────────────────────────────────────────────────────────
+
+@app.get("/contas-bancarias")
+def list_contas():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM contas_bancarias ORDER BY banco").fetchall())
+
+
+@app.post("/contas-bancarias")
+def create_conta(data: ContaBancariaIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO contas_bancarias (banco,agencia,conta,tipo,saldo_atual,ativo) VALUES (?,?,?,?,?,?)",
+            (data.banco, data.agencia, data.conta, data.tipo, data.saldo_atual, data.ativo),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM contas_bancarias WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/contas-bancarias/{conta_id}")
+def update_conta(conta_id: int, data: ContaBancariaIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE contas_bancarias SET banco=?,agencia=?,conta=?,tipo=?,saldo_atual=?,ativo=? WHERE id=?",
+            (data.banco, data.agencia, data.conta, data.tipo, data.saldo_atual, data.ativo, conta_id),
+        )
+        row = conn.execute("SELECT * FROM contas_bancarias WHERE id=?", (conta_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Conta não encontrada")
+        return row_to_dict(row)
+
+
+@app.delete("/contas-bancarias/{conta_id}")
+def delete_conta(conta_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM contas_bancarias WHERE id=?", (conta_id,))
+        return {"deleted": True}
+
+
+# ─── Ponto ────────────────────────────────────────────────────────────────────
+
+@app.get("/ponto")
+def list_ponto():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM ponto ORDER BY data DESC, id DESC").fetchall())
+
+
+@app.post("/ponto")
+def create_ponto(data: PontoIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO ponto (tecnico_id,data,entrada,almoco_saida,almoco_volta,saida,tipo,horas_extras,observacao) VALUES (?,?,?,?,?,?,?,?,?)",
+            (data.tecnico_id, data.data, data.entrada, data.almoco_saida, data.almoco_volta, data.saida, data.tipo, data.horas_extras, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM ponto WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/ponto/{ponto_id}")
+def update_ponto(ponto_id: int, data: PontoIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE ponto SET tecnico_id=?,data=?,entrada=?,almoco_saida=?,almoco_volta=?,saida=?,tipo=?,horas_extras=?,observacao=? WHERE id=?",
+            (data.tecnico_id, data.data, data.entrada, data.almoco_saida, data.almoco_volta, data.saida, data.tipo, data.horas_extras, data.observacao, ponto_id),
+        )
+        row = conn.execute("SELECT * FROM ponto WHERE id=?", (ponto_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Registro não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/ponto/{ponto_id}")
+def delete_ponto(ponto_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM ponto WHERE id=?", (ponto_id,))
+        return {"deleted": True}
+
+
+# ─── Folha de Pagamento ───────────────────────────────────────────────────────
+
+@app.get("/folha")
+def list_folha():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM folha ORDER BY ano DESC, mes DESC, id").fetchall())
+
+
+@app.post("/folha")
+def create_folha(data: FolhaIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO folha (tecnico_id,mes,ano,salario_base,horas_extras,valor_extras,total_bruto,descontos,total_liquido,status,observacao) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (data.tecnico_id, data.mes, data.ano, data.salario_base, data.horas_extras, data.valor_extras, data.total_bruto, data.descontos, data.total_liquido, data.status, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM folha WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/folha/{folha_id}")
+def update_folha(folha_id: int, data: FolhaIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE folha SET tecnico_id=?,mes=?,ano=?,salario_base=?,horas_extras=?,valor_extras=?,total_bruto=?,descontos=?,total_liquido=?,status=?,observacao=? WHERE id=?",
+            (data.tecnico_id, data.mes, data.ano, data.salario_base, data.horas_extras, data.valor_extras, data.total_bruto, data.descontos, data.total_liquido, data.status, data.observacao, folha_id),
+        )
+        row = conn.execute("SELECT * FROM folha WHERE id=?", (folha_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Registro não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/folha/{folha_id}")
+def delete_folha(folha_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM folha WHERE id=?", (folha_id,))
+        return {"deleted": True}
+
+
+# ─── Pedidos de Compra ────────────────────────────────────────────────────────
+
+@app.get("/pedidos-compra")
+def list_pedidos():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM pedidos_compra ORDER BY id DESC").fetchall())
+
+
+@app.post("/pedidos-compra")
+def create_pedido(data: PedidoCompraIn):
+    code = next_code("pedidos_compra", "PED")
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO pedidos_compra (code,fornecedor,data,data_entrega,status,obra_id,descricao,valor_total,observacao) VALUES (?,?,?,?,?,?,?,?,?)",
+            (code, data.fornecedor, data.data, data.data_entrega, data.status, data.obra_id, data.descricao, data.valor_total, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM pedidos_compra WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/pedidos-compra/{pedido_id}")
+def update_pedido(pedido_id: int, data: PedidoCompraIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE pedidos_compra SET fornecedor=?,data=?,data_entrega=?,status=?,obra_id=?,descricao=?,valor_total=?,observacao=? WHERE id=?",
+            (data.fornecedor, data.data, data.data_entrega, data.status, data.obra_id, data.descricao, data.valor_total, data.observacao, pedido_id),
+        )
+        row = conn.execute("SELECT * FROM pedidos_compra WHERE id=?", (pedido_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Pedido não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/pedidos-compra/{pedido_id}")
+def delete_pedido(pedido_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM pedidos_compra WHERE id=?", (pedido_id,))
+        return {"deleted": True}
+
+
+# ─── Manutenção de Frota ──────────────────────────────────────────────────────
+
+@app.get("/frota-manutencao")
+def list_frota_manut():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM frota_manutencao ORDER BY data DESC, id DESC").fetchall())
+
+
+@app.post("/frota-manutencao")
+def create_frota_manut(data: FrotaManutIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO frota_manutencao (veiculo_id,tipo,data,km,descricao,valor,status,observacao) VALUES (?,?,?,?,?,?,?,?)",
+            (data.veiculo_id, data.tipo, data.data, data.km, data.descricao, data.valor, data.status, data.observacao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM frota_manutencao WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/frota-manutencao/{manut_id}")
+def update_frota_manut(manut_id: int, data: FrotaManutIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE frota_manutencao SET veiculo_id=?,tipo=?,data=?,km=?,descricao=?,valor=?,status=?,observacao=? WHERE id=?",
+            (data.veiculo_id, data.tipo, data.data, data.km, data.descricao, data.valor, data.status, data.observacao, manut_id),
+        )
+        row = conn.execute("SELECT * FROM frota_manutencao WHERE id=?", (manut_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Registro não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/frota-manutencao/{manut_id}")
+def delete_frota_manut(manut_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM frota_manutencao WHERE id=?", (manut_id,))
+        return {"deleted": True}
+
+
+# ─── Cronograma ───────────────────────────────────────────────────────────────
+
+@app.get("/cronograma")
+def list_cronograma():
+    with connect() as conn:
+        return rows_to_dicts(conn.execute("SELECT * FROM cronograma ORDER BY data_inicio DESC, id DESC").fetchall())
+
+
+@app.post("/cronograma")
+def create_cronograma(data: CronogramaIn):
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO cronograma (tecnico_id,obra_id,data_inicio,data_fim,tipo,descricao) VALUES (?,?,?,?,?,?)",
+            (data.tecnico_id, data.obra_id, data.data_inicio, data.data_fim, data.tipo, data.descricao),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM cronograma WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@app.put("/cronograma/{cron_id}")
+def update_cronograma(cron_id: int, data: CronogramaIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE cronograma SET tecnico_id=?,obra_id=?,data_inicio=?,data_fim=?,tipo=?,descricao=? WHERE id=?",
+            (data.tecnico_id, data.obra_id, data.data_inicio, data.data_fim, data.tipo, data.descricao, cron_id),
+        )
+        row = conn.execute("SELECT * FROM cronograma WHERE id=?", (cron_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Registro não encontrado")
+        return row_to_dict(row)
+
+
+@app.delete("/cronograma/{cron_id}")
+def delete_cronograma(cron_id: int):
+    with connect() as conn:
+        conn.execute("DELETE FROM cronograma WHERE id=?", (cron_id,))
+        return {"deleted": True}
 
 
 if STATIC_DIR.is_dir():

@@ -138,3 +138,100 @@ class FrotaKmIn(BaseModel):
     obra_id: int | None = None
     abastecimento: float = 0
     observacao: str | None = None
+
+
+class FornecedorIn(BaseModel):
+    razao: str
+    fantasia: str | None = None
+    cnpj: str | None = None
+    categoria: str | None = None
+    telefone: str | None = None
+    email: str | None = None
+    contato: str | None = None
+    observacao: str | None = None
+
+
+class DespesaIn(BaseModel):
+    descricao: str
+    categoria: str = "Outros"
+    valor: float = 0
+    data: str
+    data_vencimento: str | None = None
+    data_pagamento: str | None = None
+    status: str = "Pendente"
+    obra_id: int | None = None
+    fornecedor: str | None = None
+    documento: str | None = None
+    observacao: str | None = None
+
+
+class ContaBancariaIn(BaseModel):
+    banco: str
+    agencia: str | None = None
+    conta: str | None = None
+    tipo: str = "Corrente"
+    saldo_atual: float = 0
+    ativo: int = 1
+
+
+class PontoIn(BaseModel):
+    tecnico_id: int
+    data: str
+    entrada: str | None = None
+    almoco_saida: str | None = None
+    almoco_volta: str | None = None
+    saida: str | None = None
+    tipo: str = "Normal"
+    horas_extras: float = 0
+    observacao: str | None = None
+
+
+class FolhaIn(BaseModel):
+    tecnico_id: int
+    mes: int
+    ano: int
+    salario_base: float = 0
+    horas_extras: float = 0
+    valor_extras: float = 0
+    total_bruto: float = 0
+    descontos: float = 0
+    total_liquido: float = 0
+    status: str = "Pendente"
+    observacao: str | None = None
+
+
+class PedidoCompraIn(BaseModel):
+    fornecedor: str | None = None
+    data: str
+    data_entrega: str | None = None
+    status: str = "Rascunho"
+    obra_id: int | None = None
+    descricao: str | None = None
+    valor_total: float = 0
+    observacao: str | None = None
+
+
+class FrotaManutIn(BaseModel):
+    veiculo_id: int
+    tipo: str = "Preventiva"
+    data: str
+    km: float = 0
+    descricao: str | None = None
+    valor: float = 0
+    status: str = "Realizada"
+    observacao: str | None = None
+
+
+class CronogramaIn(BaseModel):
+    tecnico_id: int
+    obra_id: int | None = None
+    data_inicio: str
+    data_fim: str | None = None
+    tipo: str = "Servico"
+    descricao: str | None = None
+
+
+class InvoiceUpdateIn(BaseModel):
+    status: str
+    numero_nf: str | None = None
+    data_recebimento: str | None = None

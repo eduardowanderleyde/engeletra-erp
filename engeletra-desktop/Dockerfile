@@ -13,7 +13,7 @@
 # ───────────────────────────────────────────────
 # Stage 1: build do frontend (Vite/React)
 # ───────────────────────────────────────────────
-FROM node:20-bookworm-slim AS frontend
+FROM node:20.20.2-bookworm-slim AS frontend
 WORKDIR /app/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
@@ -31,7 +31,7 @@ RUN npm run build
 # ───────────────────────────────────────────────
 # Stage 2: imagem final com FastAPI + SQLite
 # ───────────────────────────────────────────────
-FROM python:3.12-slim-bookworm
+FROM python:3.12.13-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -57,6 +57,9 @@ COPY backend/ ./
 
 # Estaticos do React vindos do estagio 1
 COPY --from=frontend /app/frontend/dist /app/static
+
+# Remove bits SUID/SGID desnecessarios para reduzir superficie de ataque
+RUN find / -xdev -perm /6000 -exec chmod a-s {} + 2>/dev/null || true
 
 # Usuario nao-root + diretorio de dados
 RUN useradd --system --uid 1001 --home /app --shell /usr/sbin/nologin engeletra \

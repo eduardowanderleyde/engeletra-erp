@@ -18,6 +18,10 @@ services:
       ENGELETRA_ALLOWED_ORIGINS: "http://localhost:8787,http://127.0.0.1:8787"
     volumes:
       - engeletra-data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
 volumes:
   engeletra-data:

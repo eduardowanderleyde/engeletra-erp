@@ -38,59 +38,18 @@ Cliente solicita serviço
 ## Stack tecnológica
 
 ```
-Backend   Python 3.11 + FastAPI + SQLite (local)
-Frontend  React 18 + Vite
-Desktop   Electron 30
+Backend   Python 3.12 + FastAPI 0.136 + SQLite (local)
+Frontend  React 18 + Vite 8
+Desktop   Electron 41
 ```
 
 Sem dependência de internet. Banco de dados é um único arquivo `.db` — fácil de fazer backup.
 
 ---
 
-## Rodar em desenvolvimento
+## Como rodar
 
-### 1. Backend
-
-```bash
-cd engeletra-desktop/backend
-python3 -m venv .venv3
-source .venv3/bin/activate        # Windows: .venv3\Scripts\activate
-pip install -r requirements.txt
-uvicorn engeletra_api.main:app --host 127.0.0.1 --port 8787 --reload
-```
-
-### 2. Frontend
-
-```bash
-cd engeletra-desktop/frontend
-npm install
-npm run dev
-# Abre em http://127.0.0.1:5177
-```
-
-### 3. App desktop (opcional, junta tudo numa janela)
-
-```bash
-cd engeletra-desktop
-npm install
-npm run desktop
-```
-
----
-
-## Gerar instalador
-
-```bash
-cd engeletra-desktop
-
-# Windows (.exe instalador + portable)
-npm run dist:win
-
-# macOS (.dmg + .zip)
-npm run dist:mac
-```
-
-Saídas em `dist/`.
+Consulte o **[instruction.md](instruction.md)** para instruções completas de desenvolvimento, Docker e geração de instalador.
 
 ---
 
@@ -108,8 +67,9 @@ app-desktop/              Protótipo HTML (localStorage, descontinuado)
 docs/                     Documentação geral
 ```
 
-Para entender a arquitetura detalhada, leia `README2.md`.
-Para entender cada arquivo e função, leia `README3.md`.
+- `README2.md` — arquitetura e decisões técnicas
+- `README3.md` — mapa completo de arquivos e funções
+- `instruction.md` — como instalar, rodar e manter
 
 ---
 

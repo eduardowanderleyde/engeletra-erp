@@ -185,7 +185,7 @@ POST   /frota-km          Registra uso: calcula km_rodado e atualiza km do veíc
 frontend/
   index.html              Entry HTML — monta <div id="root"> e carrega main.jsx
   vite.config.js          Config Vite: plugin React, porta 5177
-  package.json            Dependências: React 18, Vite 5, @vitejs/plugin-react
+  package.json            Dependências: React 18, Vite 8, @vitejs/plugin-react
 
   src/
     main.jsx              Entry React — ReactDOM.createRoot → <App />

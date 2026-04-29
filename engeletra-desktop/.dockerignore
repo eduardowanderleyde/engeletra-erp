@@ -1,5 +1,7 @@
 **/node_modules
 **/.venv
+**/.venv3
+**/.venv_audit
 **/__pycache__
 **/*.pyc
 .git

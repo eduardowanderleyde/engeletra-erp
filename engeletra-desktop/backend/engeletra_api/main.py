@@ -2,21 +2,22 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import connect, init_db, row_to_dict, rows_to_dicts
-from .security import LocalApiTokenMiddleware
+from .security import create_access_token, verify_password, verify_token
 from .schemas import (
     ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn,
     ObraIn, TecnicoIn, EnsaioIn, VeiculoIn, FrotaKmIn,
     FornecedorIn, DespesaIn, ContaBancariaIn, PontoIn, FolhaIn,
     PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn,
+    LoginIn, TokenOut,
 )
 from .settings import ALLOWED_ORIGINS, STATIC_DIR
 
-app = FastAPI(title="Engeletra ERP API", version="0.3.0")
+app = FastAPI(title="Engeletra ERP API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(LocalApiTokenMiddleware)
+
+# Rotas protegidas — qualquer endpoint aqui exige JWT válido.
+protected = APIRouter(dependencies=[Depends(verify_token)])
 
 
 @app.on_event("startup")
@@ -54,16 +57,25 @@ def calc_impostos(valor: float) -> dict:
     }
 
 
-# ─── Health ───────────────────────────────────────────────────────────────────
+# ─── Público ──────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
 
+@app.post("/auth/login", response_model=TokenOut)
+def login(data: LoginIn):
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username=?", (data.username,)).fetchone()
+    if not row or not verify_password(data.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    return TokenOut(access_token=create_access_token(data.username))
+
+
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 
-@app.get("/dashboard")
+@protected.get("/dashboard")
 def dashboard():
     with connect() as conn:
         open_os       = conn.execute("SELECT COUNT(*) total FROM service_orders WHERE status = 'Aberto'").fetchone()["total"]
@@ -86,13 +98,13 @@ def dashboard():
 
 # ─── Clients ──────────────────────────────────────────────────────────────────
 
-@app.get("/clients")
+@protected.get("/clients")
 def list_clients():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM clients ORDER BY fantasia, razao").fetchall())
 
 
-@app.post("/clients")
+@protected.post("/clients")
 def create_client(data: ClientIn):
     with connect() as conn:
         cur = conn.execute(
@@ -102,7 +114,7 @@ def create_client(data: ClientIn):
         return row_to_dict(conn.execute("SELECT * FROM clients WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/clients/{client_id}")
+@protected.put("/clients/{client_id}")
 def update_client(client_id: int, data: ClientIn):
     with connect() as conn:
         conn.execute(
@@ -115,7 +127,7 @@ def update_client(client_id: int, data: ClientIn):
         return row_to_dict(row)
 
 
-@app.delete("/clients/{client_id}")
+@protected.delete("/clients/{client_id}")
 def delete_client(client_id: int):
     with connect() as conn:
         checks = {
@@ -133,13 +145,13 @@ def delete_client(client_id: int):
 
 # ─── Equipment ────────────────────────────────────────────────────────────────
 
-@app.get("/equipment")
+@protected.get("/equipment")
 def list_equipment():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM equipment ORDER BY id DESC").fetchall())
 
 
-@app.post("/equipment")
+@protected.post("/equipment")
 def create_equipment(data: EquipmentIn):
     with connect() as conn:
         cur = conn.execute(
@@ -151,13 +163,13 @@ def create_equipment(data: EquipmentIn):
 
 # ─── Quotes ───────────────────────────────────────────────────────────────────
 
-@app.get("/quotes")
+@protected.get("/quotes")
 def list_quotes():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM quotes ORDER BY id DESC").fetchall())
 
 
-@app.post("/quotes")
+@protected.post("/quotes")
 def create_quote(data: QuoteIn):
     total = quote_total(data)
     code = next_code("quotes", "ORC")
@@ -172,7 +184,7 @@ def create_quote(data: QuoteIn):
     return quote
 
 
-@app.post("/quotes/{quote_id}/approve")
+@protected.post("/quotes/{quote_id}/approve")
 def approve_quote(quote_id: int):
     with connect() as conn:
         quote = conn.execute("SELECT * FROM quotes WHERE id=?", (quote_id,)).fetchone()
@@ -191,13 +203,13 @@ def approve_quote(quote_id: int):
 
 # ─── Service Orders ───────────────────────────────────────────────────────────
 
-@app.get("/service-orders")
+@protected.get("/service-orders")
 def list_service_orders():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM service_orders ORDER BY id DESC").fetchall())
 
 
-@app.post("/service-orders")
+@protected.post("/service-orders")
 def create_service_order(data: ServiceOrderIn):
     code = next_code("service_orders", "OS")
     with connect() as conn:
@@ -211,7 +223,7 @@ def create_service_order(data: ServiceOrderIn):
     return order
 
 
-@app.post("/service-orders/{order_id}/finish")
+@protected.post("/service-orders/{order_id}/finish")
 def finish_service_order(order_id: int):
     with connect() as conn:
         order = conn.execute("SELECT * FROM service_orders WHERE id=?", (order_id,)).fetchone()
@@ -235,21 +247,34 @@ def finish_service_order(order_id: int):
 
 # ─── Invoices ─────────────────────────────────────────────────────────────────
 
-@app.get("/invoices")
+@protected.get("/invoices")
 def list_invoices():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM invoices ORDER BY id DESC").fetchall())
 
 
+@protected.put("/invoices/{invoice_id}")
+def update_invoice(invoice_id: int, data: InvoiceUpdateIn):
+    with connect() as conn:
+        conn.execute(
+            "UPDATE invoices SET status=?, numero_nf=?, data_recebimento=? WHERE id=?",
+            (data.status, data.numero_nf, data.data_recebimento, invoice_id),
+        )
+        row = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Fatura não encontrada")
+        return row_to_dict(row)
+
+
 # ─── Stock ────────────────────────────────────────────────────────────────────
 
-@app.get("/stock")
+@protected.get("/stock")
 def list_stock():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM stock_items ORDER BY item").fetchall())
 
 
-@app.post("/stock")
+@protected.post("/stock")
 def create_stock_item(data: StockItemIn):
     with connect() as conn:
         cur = conn.execute(
@@ -261,13 +286,13 @@ def create_stock_item(data: StockItemIn):
 
 # ─── Obras ────────────────────────────────────────────────────────────────────
 
-@app.get("/obras")
+@protected.get("/obras")
 def list_obras():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM obras ORDER BY id DESC").fetchall())
 
 
-@app.post("/obras")
+@protected.post("/obras")
 def create_obra(data: ObraIn):
     code = next_code("obras", "SERV")
     with connect() as conn:
@@ -278,7 +303,7 @@ def create_obra(data: ObraIn):
         return row_to_dict(conn.execute("SELECT * FROM obras WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/obras/{obra_id}")
+@protected.put("/obras/{obra_id}")
 def update_obra(obra_id: int, data: ObraIn):
     with connect() as conn:
         conn.execute(
@@ -291,7 +316,7 @@ def update_obra(obra_id: int, data: ObraIn):
         return row_to_dict(row)
 
 
-@app.delete("/obras/{obra_id}")
+@protected.delete("/obras/{obra_id}")
 def delete_obra(obra_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM obras WHERE id=?", (obra_id,))
@@ -300,13 +325,13 @@ def delete_obra(obra_id: int):
 
 # ─── Técnicos ─────────────────────────────────────────────────────────────────
 
-@app.get("/tecnicos")
+@protected.get("/tecnicos")
 def list_tecnicos():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM tecnicos ORDER BY nome").fetchall())
 
 
-@app.post("/tecnicos")
+@protected.post("/tecnicos")
 def create_tecnico(data: TecnicoIn):
     with connect() as conn:
         cur = conn.execute(
@@ -316,7 +341,7 @@ def create_tecnico(data: TecnicoIn):
         return row_to_dict(conn.execute("SELECT * FROM tecnicos WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/tecnicos/{tecnico_id}")
+@protected.put("/tecnicos/{tecnico_id}")
 def update_tecnico(tecnico_id: int, data: TecnicoIn):
     with connect() as conn:
         conn.execute(
@@ -329,7 +354,7 @@ def update_tecnico(tecnico_id: int, data: TecnicoIn):
         return row_to_dict(row)
 
 
-@app.delete("/tecnicos/{tecnico_id}")
+@protected.delete("/tecnicos/{tecnico_id}")
 def delete_tecnico(tecnico_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM tecnicos WHERE id=?", (tecnico_id,))
@@ -338,13 +363,13 @@ def delete_tecnico(tecnico_id: int):
 
 # ─── Ensaios ──────────────────────────────────────────────────────────────────
 
-@app.get("/ensaios")
+@protected.get("/ensaios")
 def list_ensaios():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM ensaios ORDER BY id DESC").fetchall())
 
 
-@app.post("/ensaios")
+@protected.post("/ensaios")
 def create_ensaio(data: EnsaioIn):
     code = next_code("ensaios", "ENS")
     with connect() as conn:
@@ -369,7 +394,7 @@ def create_ensaio(data: EnsaioIn):
         return row_to_dict(conn.execute("SELECT * FROM ensaios WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/ensaios/{ensaio_id}")
+@protected.put("/ensaios/{ensaio_id}")
 def update_ensaio(ensaio_id: int, data: EnsaioIn):
     with connect() as conn:
         conn.execute(
@@ -398,13 +423,13 @@ def update_ensaio(ensaio_id: int, data: EnsaioIn):
 
 # ─── Veículos ─────────────────────────────────────────────────────────────────
 
-@app.get("/veiculos")
+@protected.get("/veiculos")
 def list_veiculos():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM veiculos ORDER BY modelo").fetchall())
 
 
-@app.post("/veiculos")
+@protected.post("/veiculos")
 def create_veiculo(data: VeiculoIn):
     with connect() as conn:
         cur = conn.execute(
@@ -414,7 +439,7 @@ def create_veiculo(data: VeiculoIn):
         return row_to_dict(conn.execute("SELECT * FROM veiculos WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/veiculos/{veiculo_id}")
+@protected.put("/veiculos/{veiculo_id}")
 def update_veiculo(veiculo_id: int, data: VeiculoIn):
     with connect() as conn:
         conn.execute(
@@ -429,13 +454,13 @@ def update_veiculo(veiculo_id: int, data: VeiculoIn):
 
 # ─── Frota KM Diário ──────────────────────────────────────────────────────────
 
-@app.get("/frota-km")
+@protected.get("/frota-km")
 def list_frota_km():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM frota_km ORDER BY data DESC, id DESC").fetchall())
 
 
-@app.post("/frota-km")
+@protected.post("/frota-km")
 def create_frota_km(data: FrotaKmIn):
     km_rodado = max(0.0, data.km_final - data.km_inicial)
     with connect() as conn:
@@ -447,30 +472,15 @@ def create_frota_km(data: FrotaKmIn):
         return row_to_dict(conn.execute("SELECT * FROM frota_km WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-# ─── Invoices (update) ────────────────────────────────────────────────────────
-
-@app.put("/invoices/{invoice_id}")
-def update_invoice(invoice_id: int, data: InvoiceUpdateIn):
-    with connect() as conn:
-        conn.execute(
-            "UPDATE invoices SET status=?, numero_nf=?, data_recebimento=? WHERE id=?",
-            (data.status, data.numero_nf, data.data_recebimento, invoice_id),
-        )
-        row = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
-        if not row:
-            raise HTTPException(404, "Fatura não encontrada")
-        return row_to_dict(row)
-
-
 # ─── Fornecedores ─────────────────────────────────────────────────────────────
 
-@app.get("/fornecedores")
+@protected.get("/fornecedores")
 def list_fornecedores():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM fornecedores ORDER BY fantasia, razao").fetchall())
 
 
-@app.post("/fornecedores")
+@protected.post("/fornecedores")
 def create_fornecedor(data: FornecedorIn):
     with connect() as conn:
         cur = conn.execute(
@@ -480,7 +490,7 @@ def create_fornecedor(data: FornecedorIn):
         return row_to_dict(conn.execute("SELECT * FROM fornecedores WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/fornecedores/{forn_id}")
+@protected.put("/fornecedores/{forn_id}")
 def update_fornecedor(forn_id: int, data: FornecedorIn):
     with connect() as conn:
         conn.execute(
@@ -493,7 +503,7 @@ def update_fornecedor(forn_id: int, data: FornecedorIn):
         return row_to_dict(row)
 
 
-@app.delete("/fornecedores/{forn_id}")
+@protected.delete("/fornecedores/{forn_id}")
 def delete_fornecedor(forn_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM fornecedores WHERE id=?", (forn_id,))
@@ -502,13 +512,13 @@ def delete_fornecedor(forn_id: int):
 
 # ─── Despesas ─────────────────────────────────────────────────────────────────
 
-@app.get("/despesas")
+@protected.get("/despesas")
 def list_despesas():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM despesas ORDER BY data DESC, id DESC").fetchall())
 
 
-@app.post("/despesas")
+@protected.post("/despesas")
 def create_despesa(data: DespesaIn):
     with connect() as conn:
         cur = conn.execute(
@@ -518,7 +528,7 @@ def create_despesa(data: DespesaIn):
         return row_to_dict(conn.execute("SELECT * FROM despesas WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/despesas/{desp_id}")
+@protected.put("/despesas/{desp_id}")
 def update_despesa(desp_id: int, data: DespesaIn):
     with connect() as conn:
         conn.execute(
@@ -531,7 +541,7 @@ def update_despesa(desp_id: int, data: DespesaIn):
         return row_to_dict(row)
 
 
-@app.delete("/despesas/{desp_id}")
+@protected.delete("/despesas/{desp_id}")
 def delete_despesa(desp_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM despesas WHERE id=?", (desp_id,))
@@ -540,13 +550,13 @@ def delete_despesa(desp_id: int):
 
 # ─── Contas Bancárias ─────────────────────────────────────────────────────────
 
-@app.get("/contas-bancarias")
+@protected.get("/contas-bancarias")
 def list_contas():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM contas_bancarias ORDER BY banco").fetchall())
 
 
-@app.post("/contas-bancarias")
+@protected.post("/contas-bancarias")
 def create_conta(data: ContaBancariaIn):
     with connect() as conn:
         cur = conn.execute(
@@ -556,7 +566,7 @@ def create_conta(data: ContaBancariaIn):
         return row_to_dict(conn.execute("SELECT * FROM contas_bancarias WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/contas-bancarias/{conta_id}")
+@protected.put("/contas-bancarias/{conta_id}")
 def update_conta(conta_id: int, data: ContaBancariaIn):
     with connect() as conn:
         conn.execute(
@@ -569,7 +579,7 @@ def update_conta(conta_id: int, data: ContaBancariaIn):
         return row_to_dict(row)
 
 
-@app.delete("/contas-bancarias/{conta_id}")
+@protected.delete("/contas-bancarias/{conta_id}")
 def delete_conta(conta_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM contas_bancarias WHERE id=?", (conta_id,))
@@ -578,13 +588,13 @@ def delete_conta(conta_id: int):
 
 # ─── Ponto ────────────────────────────────────────────────────────────────────
 
-@app.get("/ponto")
+@protected.get("/ponto")
 def list_ponto():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM ponto ORDER BY data DESC, id DESC").fetchall())
 
 
-@app.post("/ponto")
+@protected.post("/ponto")
 def create_ponto(data: PontoIn):
     with connect() as conn:
         cur = conn.execute(
@@ -594,7 +604,7 @@ def create_ponto(data: PontoIn):
         return row_to_dict(conn.execute("SELECT * FROM ponto WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/ponto/{ponto_id}")
+@protected.put("/ponto/{ponto_id}")
 def update_ponto(ponto_id: int, data: PontoIn):
     with connect() as conn:
         conn.execute(
@@ -607,7 +617,7 @@ def update_ponto(ponto_id: int, data: PontoIn):
         return row_to_dict(row)
 
 
-@app.delete("/ponto/{ponto_id}")
+@protected.delete("/ponto/{ponto_id}")
 def delete_ponto(ponto_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM ponto WHERE id=?", (ponto_id,))
@@ -616,13 +626,13 @@ def delete_ponto(ponto_id: int):
 
 # ─── Folha de Pagamento ───────────────────────────────────────────────────────
 
-@app.get("/folha")
+@protected.get("/folha")
 def list_folha():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM folha ORDER BY ano DESC, mes DESC, id").fetchall())
 
 
-@app.post("/folha")
+@protected.post("/folha")
 def create_folha(data: FolhaIn):
     with connect() as conn:
         cur = conn.execute(
@@ -632,7 +642,7 @@ def create_folha(data: FolhaIn):
         return row_to_dict(conn.execute("SELECT * FROM folha WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/folha/{folha_id}")
+@protected.put("/folha/{folha_id}")
 def update_folha(folha_id: int, data: FolhaIn):
     with connect() as conn:
         conn.execute(
@@ -645,7 +655,7 @@ def update_folha(folha_id: int, data: FolhaIn):
         return row_to_dict(row)
 
 
-@app.delete("/folha/{folha_id}")
+@protected.delete("/folha/{folha_id}")
 def delete_folha(folha_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM folha WHERE id=?", (folha_id,))
@@ -654,13 +664,13 @@ def delete_folha(folha_id: int):
 
 # ─── Pedidos de Compra ────────────────────────────────────────────────────────
 
-@app.get("/pedidos-compra")
+@protected.get("/pedidos-compra")
 def list_pedidos():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM pedidos_compra ORDER BY id DESC").fetchall())
 
 
-@app.post("/pedidos-compra")
+@protected.post("/pedidos-compra")
 def create_pedido(data: PedidoCompraIn):
     code = next_code("pedidos_compra", "PED")
     with connect() as conn:
@@ -671,7 +681,7 @@ def create_pedido(data: PedidoCompraIn):
         return row_to_dict(conn.execute("SELECT * FROM pedidos_compra WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/pedidos-compra/{pedido_id}")
+@protected.put("/pedidos-compra/{pedido_id}")
 def update_pedido(pedido_id: int, data: PedidoCompraIn):
     with connect() as conn:
         conn.execute(
@@ -684,7 +694,7 @@ def update_pedido(pedido_id: int, data: PedidoCompraIn):
         return row_to_dict(row)
 
 
-@app.delete("/pedidos-compra/{pedido_id}")
+@protected.delete("/pedidos-compra/{pedido_id}")
 def delete_pedido(pedido_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM pedidos_compra WHERE id=?", (pedido_id,))
@@ -693,13 +703,13 @@ def delete_pedido(pedido_id: int):
 
 # ─── Manutenção de Frota ──────────────────────────────────────────────────────
 
-@app.get("/frota-manutencao")
+@protected.get("/frota-manutencao")
 def list_frota_manut():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM frota_manutencao ORDER BY data DESC, id DESC").fetchall())
 
 
-@app.post("/frota-manutencao")
+@protected.post("/frota-manutencao")
 def create_frota_manut(data: FrotaManutIn):
     with connect() as conn:
         cur = conn.execute(
@@ -709,7 +719,7 @@ def create_frota_manut(data: FrotaManutIn):
         return row_to_dict(conn.execute("SELECT * FROM frota_manutencao WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/frota-manutencao/{manut_id}")
+@protected.put("/frota-manutencao/{manut_id}")
 def update_frota_manut(manut_id: int, data: FrotaManutIn):
     with connect() as conn:
         conn.execute(
@@ -722,7 +732,7 @@ def update_frota_manut(manut_id: int, data: FrotaManutIn):
         return row_to_dict(row)
 
 
-@app.delete("/frota-manutencao/{manut_id}")
+@protected.delete("/frota-manutencao/{manut_id}")
 def delete_frota_manut(manut_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM frota_manutencao WHERE id=?", (manut_id,))
@@ -731,13 +741,13 @@ def delete_frota_manut(manut_id: int):
 
 # ─── Cronograma ───────────────────────────────────────────────────────────────
 
-@app.get("/cronograma")
+@protected.get("/cronograma")
 def list_cronograma():
     with connect() as conn:
         return rows_to_dicts(conn.execute("SELECT * FROM cronograma ORDER BY data_inicio DESC, id DESC").fetchall())
 
 
-@app.post("/cronograma")
+@protected.post("/cronograma")
 def create_cronograma(data: CronogramaIn):
     with connect() as conn:
         cur = conn.execute(
@@ -747,7 +757,7 @@ def create_cronograma(data: CronogramaIn):
         return row_to_dict(conn.execute("SELECT * FROM cronograma WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
-@app.put("/cronograma/{cron_id}")
+@protected.put("/cronograma/{cron_id}")
 def update_cronograma(cron_id: int, data: CronogramaIn):
     with connect() as conn:
         conn.execute(
@@ -760,12 +770,15 @@ def update_cronograma(cron_id: int, data: CronogramaIn):
         return row_to_dict(row)
 
 
-@app.delete("/cronograma/{cron_id}")
+@protected.delete("/cronograma/{cron_id}")
 def delete_cronograma(cron_id: int):
     with connect() as conn:
         conn.execute("DELETE FROM cronograma WHERE id=?", (cron_id,))
         return {"deleted": True}
 
+
+# ─── Registrar router protegido ───────────────────────────────────────────────
+app.include_router(protected)
 
 if STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")

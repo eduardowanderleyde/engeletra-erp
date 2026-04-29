@@ -1,0 +1,23 @@
+services:
+  engeletra-erp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: engeletra-erp:latest
+    container_name: engeletra-erp
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Chave secreta para assinar os tokens JWT. Gere com:
+      #   python -c "import secrets; print(secrets.token_hex(32))"
+      # Se não definida, o backend usa uma chave volátil (tokens expiram ao reiniciar).
+      ENGELETRA_SECRET_KEY: "${ENGELETRA_SECRET_KEY}"
+      # Senha do usuário admin criado no primeiro boot (padrão: admin).
+      ENGELETRA_ADMIN_PASSWORD: "${ENGELETRA_ADMIN_PASSWORD}"
+      ENGELETRA_ALLOWED_ORIGINS: "http://localhost:8787,http://127.0.0.1:8787"
+    volumes:
+      - engeletra-data:/data
+
+volumes:
+  engeletra-data:

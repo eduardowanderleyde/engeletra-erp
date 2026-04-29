@@ -43,6 +43,27 @@ def _migrate(conn) -> None:
     )
 
 
+def _seed_admin(conn) -> None:
+    from .security import hash_password
+    import os
+
+    if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+        return
+    raw = os.getenv("ENGELETRA_ADMIN_PASSWORD", "admin")
+    if raw == "admin":
+        import warnings
+        warnings.warn(
+            "ATENÇÃO: senha padrão 'admin' em uso. "
+            "Defina ENGELETRA_ADMIN_PASSWORD antes de ir para produção.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+    conn.execute(
+        "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+        ("admin", hash_password(raw), "admin"),
+    )
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(
@@ -360,6 +381,15 @@ def init_db() -> None:
                 created_at  TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- ─── Usuários ─────────────────────────────────────────────
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role          TEXT DEFAULT 'admin',
+                created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- ─── Índices ──────────────────────────────────────────────
             CREATE INDEX IF NOT EXISTS idx_equipment_client      ON equipment(client_id);
             CREATE INDEX IF NOT EXISTS idx_quotes_client         ON quotes(client_id);
@@ -386,6 +416,7 @@ def init_db() -> None:
             """
         )
         _migrate(conn)
+        _seed_admin(conn)
 
 
 def row_to_dict(row: sqlite3.Row | None):

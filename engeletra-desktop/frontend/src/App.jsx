@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './styles/main.css'
+import { auth } from './api/index.js'
+import Login from './features/Login.jsx'
 
 import Dashboard    from './features/Dashboard.jsx'
 import Clients      from './features/Clients.jsx'
@@ -114,10 +116,21 @@ const PAGES = {
 }
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(() => !!auth.getToken())
   const [page, setPage] = useState('dashboard')
   const [openGroups, setOpenGroups] = useState(
     new Set(['operacional', 'cadastros', 'frota', 'financeiro', 'rh', 'compras'])
   )
+
+  useEffect(() => {
+    function onLogout() { setAuthenticated(false) }
+    window.addEventListener('engeletra:logout', onLogout)
+    return () => window.removeEventListener('engeletra:logout', onLogout)
+  }, [])
+
+  if (!authenticated) {
+    return <Login onLogin={() => setAuthenticated(true)} />
+  }
 
   function toggleGroup(id) {
     setOpenGroups(prev => {
@@ -171,7 +184,16 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="sidebar-footer">v0.4.0</div>
+        <div className="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>v0.4.0</span>
+          <button
+            onClick={() => auth.logout()}
+            title="Sair"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 16 }}
+          >
+            ⏻
+          </button>
+        </div>
       </aside>
 
       <div className="content-area">

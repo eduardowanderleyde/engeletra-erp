@@ -1,9 +1,50 @@
-const BASE = 'http://127.0.0.1:8787'
+const BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8787'
+const TOKEN_KEY = 'engeletra_token'
+
+export const auth = {
+  getToken: () => localStorage.getItem(TOKEN_KEY),
+  setToken: t => localStorage.setItem(TOKEN_KEY, t),
+  clearToken: () => localStorage.removeItem(TOKEN_KEY),
+
+  async login(username, password) {
+    const res = await fetch(BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail ?? 'Usuário ou senha incorretos')
+    }
+    const data = await res.json()
+    auth.setToken(data.access_token)
+    return data
+  },
+
+  logout() {
+    auth.clearToken()
+    window.dispatchEvent(new Event('engeletra:logout'))
+  },
+}
 
 async function req(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } }
+  const token = auth.getToken()
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  }
   if (body !== undefined) opts.body = JSON.stringify(body)
   const res = await fetch(BASE + path, opts)
+
+  if (res.status === 401) {
+    auth.clearToken()
+    window.dispatchEvent(new Event('engeletra:logout'))
+    throw new Error('Sessão expirada. Faça login novamente.')
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     const detail = err.detail

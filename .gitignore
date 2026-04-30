@@ -12,5 +12,7 @@ build/
 *.sqlite
 *.sqlite3
 .env
-.env.*
+.env.local
+.env.*.local
+!.env.example
 .venv3/

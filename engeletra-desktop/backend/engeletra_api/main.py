@@ -22,8 +22,9 @@ app = FastAPI(title="Engeletra ERP API", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Rotas protegidas — qualquer endpoint aqui exige JWT válido.
@@ -35,7 +36,11 @@ def startup():
     init_db()
 
 
+_CODE_TABLES = {"quotes", "service_orders", "invoices", "obras", "ensaios", "pedidos_compra"}
+
 def next_code(table: str, prefix: str) -> str:
+    if table not in _CODE_TABLES:
+        raise ValueError(f"Tabela inválida: {table}")
     with connect() as conn:
         row = conn.execute(f"SELECT COUNT(*) AS total FROM {table}").fetchone()
         return f"{prefix}-{int(row['total']) + 1:04d}"

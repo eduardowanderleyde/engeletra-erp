@@ -41,17 +41,23 @@ Define caminhos e configurações via env vars:
 | `ENGELETRA_DATA_DIR` | pasta do projeto | Onde o `.db` é salvo |
 | `ENGELETRA_API_HOST` | `127.0.0.1` | Interface de escuta |
 | `ENGELETRA_API_PORT` | `8787` | Porta |
-| `ENGELETRA_API_TOKEN` | vazio | Token de segurança (vazio = sem token em dev) |
+| `ENGELETRA_SECRET_KEY` | chave volátil | Chave de assinatura JWT — defina em produção |
+| `ENGELETRA_ADMIN_PASSWORD` | `admin` | Senha do usuário admin no primeiro boot |
+| `ENGELETRA_JWT_EXPIRE_MINUTES` | `480` | Validade do token JWT (padrão: 8 horas) |
 | `ENGELETRA_ALLOWED_ORIGINS` | `127.0.0.1:5177` | CORS permitido |
 | `ENGELETRA_STATIC_DIR` | vazio | Pasta do build Vite (Docker/produção) |
 
 ### security.py
 
-`LocalApiTokenMiddleware` — verifica o header `X-Engeletra-Token` em cada request.
+Autenticação via **JWT (Bearer token)**. Todas as rotas exceto `/health` e `/auth/login` exigem token válido.
 
-- Se `API_TOKEN` estiver vazio (desenvolvimento): deixa passar tudo
-- Se token definido: bloqueia requests sem o header correto
-- Rotas isentas: `/health`, `/docs`, `/openapi.json`
+- `hash_password(password)` — gera hash bcrypt
+- `verify_password(plain, hashed)` — verifica senha contra hash
+- `create_access_token(username)` — gera JWT assinado com `SECRET_KEY`
+- `verify_token(credentials)` — dependência FastAPI que valida o Bearer token em cada request protegido
+
+Rotas públicas: `/health`, `/auth/login`  
+Rotas protegidas: todas as demais (exigem `Authorization: Bearer <token>`)
 
 ### database.py — funções principais
 

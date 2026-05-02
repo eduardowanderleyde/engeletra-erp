@@ -19,9 +19,10 @@ export default function ServiceOrders() {
   const [equipment, setEquipment] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('Todos')
-  const [modal, setModal] = useState(false)
-  const [form, setForm] = useState(EMPTY)
-  const [saving, setSaving] = useState(false)
+  const [modal, setModal]     = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm]       = useState(EMPTY)
+  const [saving, setSaving]   = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -55,23 +56,45 @@ export default function ServiceOrders() {
   }
 
   function openNew() {
+    setEditing(null)
     setForm(EMPTY)
+    setModal(true)
+  }
+
+  function openEdit(o) {
+    setEditing(o)
+    setForm({
+      client_id:    o.client_id,
+      quote_id:     o.quote_id     ?? '',
+      equipment_id: o.equipment_id ?? '',
+      tecnico:      o.tecnico      ?? '',
+      status:       o.status,
+      data_agendada: o.data_agendada ?? '',
+      horas_reais:  o.horas_reais,
+      km_real:      o.km_real,
+      valor_real:   o.valor_real,
+      checklist:    o.checklist  ?? '',
+      materiais:    o.materiais  ?? '',
+    })
     setModal(true)
   }
 
   async function save() {
     if (!form.client_id) { alert('Selecione um cliente.'); return }
     setSaving(true)
+    const payload = {
+      ...form,
+      client_id:    Number(form.client_id),
+      quote_id:     form.quote_id     ? Number(form.quote_id)     : null,
+      equipment_id: form.equipment_id ? Number(form.equipment_id) : null,
+      horas_reais:  Number(form.horas_reais),
+      km_real:      Number(form.km_real),
+      valor_real:   Number(form.valor_real),
+    }
     try {
-      await api.serviceOrders.create({
-        ...form,
-        client_id: Number(form.client_id),
-        quote_id: form.quote_id ? Number(form.quote_id) : null,
-        equipment_id: form.equipment_id ? Number(form.equipment_id) : null,
-        horas_reais: Number(form.horas_reais),
-        km_real: Number(form.km_real),
-        valor_real: Number(form.valor_real),
-      })
+      editing
+        ? await api.serviceOrders.update(editing.id, payload)
+        : await api.serviceOrders.create(payload)
       setModal(false)
       loadAll()
     } catch (e) {
@@ -146,11 +169,10 @@ export default function ServiceOrders() {
                 <td>{fmtDate(o.data_agendada)}</td>
                 <td>{o.horas_reais > 0 ? `${o.horas_reais}h` : '—'}</td>
                 <td>{o.valor_real > 0 ? fmtMoney(o.valor_real) : '—'}</td>
-                <td>
+                <td style={{ display: 'flex', gap: 4 }}>
+                  <button className="btn btn-sm btn-ghost" onClick={() => openEdit(o)}>Editar</button>
                   {o.status !== 'Concluído' && o.status !== 'Cancelado' && (
-                    <button className="btn btn-sm btn-success" onClick={() => finish(o)}>
-                      Concluir
-                    </button>
+                    <button className="btn btn-sm btn-success" onClick={() => finish(o)}>Concluir</button>
                   )}
                 </td>
               </tr>
@@ -160,7 +182,7 @@ export default function ServiceOrders() {
       </div>
 
       {modal && (
-        <Modal title="Nova Ordem de Serviço" onClose={() => setModal(false)} width={680}>
+        <Modal title={editing ? `Editar OS — ${editing.code}` : 'Nova Ordem de Serviço'} onClose={() => setModal(false)} width={680}>
           <div className="modal-body">
             <div className="form-group">
               <label className="form-label">Cliente *</label>
@@ -241,7 +263,7 @@ export default function ServiceOrders() {
           <div className="modal-footer">
             <button className="btn btn-ghost" onClick={() => setModal(false)}>Cancelar</button>
             <button className="btn btn-primary" onClick={save} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar OS'}
+              {saving ? 'Salvando...' : editing ? 'Salvar Alterações' : 'Salvar OS'}
             </button>
           </div>
         </Modal>

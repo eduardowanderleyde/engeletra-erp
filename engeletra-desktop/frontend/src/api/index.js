@@ -87,9 +87,10 @@ export const api = {
   },
 
   serviceOrders: {
-    list:   ()   => req('GET',  '/service-orders'),
-    create: d    => req('POST', '/service-orders', d),
-    finish: id   => req('POST', `/service-orders/${id}/finish`),
+    list:   ()       => req('GET',  '/service-orders'),
+    create: d        => req('POST', '/service-orders', d),
+    update: (id, d)  => req('PUT',  `/service-orders/${id}`, d),
+    finish: id       => req('POST', `/service-orders/${id}/finish`),
   },
 
   stock: {

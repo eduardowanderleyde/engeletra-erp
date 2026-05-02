@@ -246,6 +246,22 @@ def create_service_order(data: ServiceOrderIn):
     return order
 
 
+@protected.put("/service-orders/{order_id}")
+def update_service_order(order_id: int, data: ServiceOrderIn):
+    with connect() as conn:
+        row = conn.execute("SELECT id FROM service_orders WHERE id=?", (order_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "OS não encontrada")
+        conn.execute(
+            "UPDATE service_orders SET client_id=?,quote_id=?,equipment_id=?,obra_id=?,tecnico=?,status=?,data_agendada=?,horas_reais=?,km_real=?,valor_real=?,checklist=?,materiais=? WHERE id=?",
+            (data.client_id, data.quote_id, data.equipment_id, data.obra_id, data.tecnico, data.status, data.data_agendada, data.horas_reais, data.km_real, data.valor_real, data.checklist, data.materiais, order_id),
+        )
+        order = row_to_dict(conn.execute("SELECT * FROM service_orders WHERE id=?", (order_id,)).fetchone())
+    if data.status == "Concluído":
+        finish_service_order(order_id)
+    return order
+
+
 @protected.post("/service-orders/{order_id}/finish")
 def finish_service_order(order_id: int):
     with connect() as conn:

@@ -75,8 +75,9 @@ export const api = {
   },
 
   equipment: {
-    list:   ()  => req('GET',  '/equipment'),
-    create: d   => req('POST', '/equipment', d),
+    list:   ()       => req('GET',  '/equipment'),
+    create: d        => req('POST', '/equipment', d),
+    update: (id, d)  => req('PUT',  `/equipment/${id}`, d),
   },
 
   quotes: {
@@ -94,8 +95,9 @@ export const api = {
   },
 
   stock: {
-    list:   ()  => req('GET',  '/stock'),
-    create: d   => req('POST', '/stock', d),
+    list:   ()       => req('GET',  '/stock'),
+    create: d        => req('POST', '/stock', d),
+    update: (id, d)  => req('PUT',  `/stock/${id}`, d),
   },
 
   obras: {

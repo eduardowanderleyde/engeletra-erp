@@ -7,9 +7,8 @@ import Dashboard    from './features/Dashboard.jsx'
 import Clients      from './features/Clients.jsx'
 import Quotes       from './features/Quotes.jsx'
 import ServiceOrders from './features/ServiceOrders.jsx'
-import Equipment    from './features/Equipment.jsx'
+import EquipEstoque from './features/EquipEstoque.jsx'
 import Invoices     from './features/Invoices.jsx'
-import Stock        from './features/Stock.jsx'
 import Obras        from './features/Obras.jsx'
 import Tecnicos     from './features/Tecnicos.jsx'
 import Ensaios      from './features/Ensaios.jsx'
@@ -46,9 +45,8 @@ const NAV_GROUPS = [
     items: [
       { key: 'clients',       label: 'Clientes',      icon: '👤' },
       { key: 'fornecedores',  label: 'Fornecedores',  icon: '🤝' },
-      { key: 'equipment',     label: 'Equipamentos',  icon: '⚙️' },
+      { key: 'equip-estoque', label: 'Equipamentos & Estoque', icon: '⚙️' },
       { key: 'tecnicos',      label: 'Técnicos',      icon: '👷' },
-      { key: 'stock',         label: 'Estoque',       icon: '📦' },
     ],
   },
   {
@@ -94,9 +92,8 @@ const PAGES = {
   clients:          Clients,
   quotes:           Quotes,
   'service-orders': ServiceOrders,
-  equipment:        Equipment,
+  'equip-estoque':  EquipEstoque,
   invoices:         Invoices,
-  stock:            Stock,
   obras:            Obras,
   tecnicos:         Tecnicos,
   ensaios:          Ensaios,

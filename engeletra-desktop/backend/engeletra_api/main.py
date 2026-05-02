@@ -168,6 +168,18 @@ def create_equipment(data: EquipmentIn):
         return row_to_dict(conn.execute("SELECT * FROM equipment WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
+@protected.put("/equipment/{eq_id}")
+def update_equipment(eq_id: int, data: EquipmentIn):
+    with connect() as conn:
+        if not conn.execute("SELECT id FROM equipment WHERE id=?", (eq_id,)).fetchone():
+            raise HTTPException(404, "Equipamento não encontrado")
+        conn.execute(
+            "UPDATE equipment SET client_id=?,tipo=?,serie=?,potencia=?,tensao=?,fabricante=?,ano=?,localizacao=?,ultima_manutencao=?,proxima_manutencao=? WHERE id=?",
+            (data.client_id, data.tipo, data.serie, data.potencia, data.tensao, data.fabricante, data.ano, data.localizacao, data.ultima_manutencao, data.proxima_manutencao, eq_id),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM equipment WHERE id=?", (eq_id,)).fetchone())
+
+
 # ─── Quotes ───────────────────────────────────────────────────────────────────
 
 @protected.get("/quotes")
@@ -351,6 +363,18 @@ def create_stock_item(data: StockItemIn):
             (data.item, data.categoria, data.unidade, data.saldo, data.minimo, data.custo),
         )
         return row_to_dict(conn.execute("SELECT * FROM stock_items WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
+@protected.put("/stock/{item_id}")
+def update_stock_item(item_id: int, data: StockItemIn):
+    with connect() as conn:
+        if not conn.execute("SELECT id FROM stock_items WHERE id=?", (item_id,)).fetchone():
+            raise HTTPException(404, "Item não encontrado")
+        conn.execute(
+            "UPDATE stock_items SET item=?,categoria=?,unidade=?,saldo=?,minimo=?,custo=? WHERE id=?",
+            (data.item, data.categoria, data.unidade, data.saldo, data.minimo, data.custo, item_id),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM stock_items WHERE id=?", (item_id,)).fetchone())
 
 
 # ─── Obras ────────────────────────────────────────────────────────────────────

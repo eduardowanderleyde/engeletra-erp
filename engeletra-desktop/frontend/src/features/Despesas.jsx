@@ -20,6 +20,9 @@ export default function Despesas() {
   const [items, setItems]     = useState([])
   const [obras, setObras]     = useState([])
   const [filter, setFilter]   = useState('Todos')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo]     = useState('')
+  const [period, setPeriod]     = useState({ from: '', to: '' })
   const [modal, setModal]     = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm]       = useState(EMPTY)
@@ -62,7 +65,10 @@ export default function Despesas() {
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const visible = filter === 'Todos' ? items : items.filter(i => i.status === filter)
+  const visible = items
+    .filter(i => filter === 'Todos' || i.status === filter)
+    .filter(i => !period.from || i.data >= period.from)
+    .filter(i => !period.to   || i.data <= period.to)
   const pendente = items.filter(i => i.status === 'Pendente').reduce((s, i) => s + i.valor, 0)
   const pagoMes  = items.filter(i => i.status === 'Pago' && i.data_pagamento?.slice(0, 7) === today().slice(0, 7))
                         .reduce((s, i) => s + i.valor, 0)
@@ -96,10 +102,44 @@ export default function Despesas() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         {['Todos', ...STATUS_OPTS].map(f => (
           <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter(f)}>{f}</button>
         ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="date"
+            className="form-input"
+            style={{ width: 140, padding: '4px 8px', fontSize: 13 }}
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            title="Data inicial"
+          />
+          <span style={{ color: '#64748b', fontSize: 13 }}>até</span>
+          <input
+            type="date"
+            className="form-input"
+            style={{ width: 140, padding: '4px 8px', fontSize: 13 }}
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            title="Data final"
+          />
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => setPeriod({ from: dateFrom, to: dateTo })}
+          >
+            Filtrar
+          </button>
+          {(period.from || period.to) && (
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => { setDateFrom(''); setDateTo(''); setPeriod({ from: '', to: '' }) }}
+              title="Limpar filtro de período"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="table-wrap">

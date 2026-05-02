@@ -36,7 +36,6 @@ const NAV_GROUPS = [
       { key: 'dashboard',      label: 'Painel',              icon: '📊' },
       { key: 'quotes',         label: 'Orçamentos',          icon: '📋' },
       { key: 'service-orders', label: 'Ordens de Serviço',   icon: '🔧' },
-      { key: 'obras',          label: 'Obras & Projetos',    icon: '🏗️' },
       { key: 'ensaios',        label: 'Ensaios Elétricos',   icon: '⚡' },
       { key: 'relatorios',     label: 'Relatórios Técnicos', icon: '📄' },
     ],

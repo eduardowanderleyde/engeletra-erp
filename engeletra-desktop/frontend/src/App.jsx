@@ -25,7 +25,8 @@ import Relatorios   from './features/Relatorios.jsx'
 import Cronograma   from './features/Cronograma.jsx'
 import Ponto        from './features/Ponto.jsx'
 import Folha        from './features/Folha.jsx'
-import Pedidos      from './features/Pedidos.jsx'
+import Pedidos          from './features/Pedidos.jsx'
+import GerenciarContas  from './features/GerenciarContas.jsx'
 
 const NAV_GROUPS = [
   {
@@ -113,10 +114,12 @@ const PAGES = {
   ponto:            Ponto,
   folha:            Folha,
   pedidos:          Pedidos,
+  'gerenciar-contas': GerenciarContas,
 }
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(() => !!auth.getToken())
+  const [role, setRole] = useState(() => auth.getRole())
   const [page, setPage] = useState('dashboard')
   const [openGroups, setOpenGroups] = useState(
     new Set(['operacional', 'cadastros', 'frota', 'financeiro', 'rh', 'compras'])
@@ -129,7 +132,7 @@ export default function App() {
   }, [])
 
   if (!authenticated) {
-    return <Login onLogin={() => setAuthenticated(true)} />
+    return <Login onLogin={() => { setAuthenticated(true); setRole(auth.getRole()) }} />
   }
 
   function toggleGroup(id) {
@@ -183,6 +186,19 @@ export default function App() {
             </div>
           ))}
         </nav>
+
+        {role === 'admin' && (
+          <div style={{ padding: '0 8px 8px' }}>
+            <button
+              className={`nav-btn ${page === 'gerenciar-contas' ? 'active' : ''}`}
+              onClick={() => setPage('gerenciar-contas')}
+              style={{ width: '100%' }}
+            >
+              <span className="nav-icon">👥</span>
+              <span>Gerenciar Contas</span>
+            </button>
+          </div>
+        )}
 
         <div className="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>v0.4.0</span>

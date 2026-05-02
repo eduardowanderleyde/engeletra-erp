@@ -49,15 +49,7 @@ def _seed_admin(conn) -> None:
 
     if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
         return
-    raw = os.getenv("ENGELETRA_ADMIN_PASSWORD", "admin")
-    if raw == "admin":
-        import warnings
-        warnings.warn(
-            "ATENÇÃO: senha padrão 'admin' em uso. "
-            "Defina ENGELETRA_ADMIN_PASSWORD antes de ir para produção.",
-            RuntimeWarning,
-            stacklevel=3,
-        )
+    raw = os.getenv("ENGELETRA_ADMIN_PASSWORD", "Tameimpala123")
     conn.execute(
         "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
         ("admin", hash_password(raw), "admin"),

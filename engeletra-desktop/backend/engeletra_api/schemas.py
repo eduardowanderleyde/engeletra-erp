@@ -11,6 +11,12 @@ class LoginIn(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    role: str = "user"
+
+
+class UserIn(BaseModel):
+    username: str
+    password: str
 
 
 class ClientIn(BaseModel):

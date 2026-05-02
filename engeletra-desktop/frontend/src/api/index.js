@@ -1,10 +1,15 @@
 const BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8787'
 const TOKEN_KEY = 'engeletra_token'
+const ROLE_KEY  = 'engeletra_role'
 
 export const auth = {
   getToken: () => localStorage.getItem(TOKEN_KEY),
-  setToken: t => localStorage.setItem(TOKEN_KEY, t),
+  setToken: t  => localStorage.setItem(TOKEN_KEY, t),
   clearToken: () => localStorage.removeItem(TOKEN_KEY),
+
+  getRole: () => localStorage.getItem(ROLE_KEY) ?? 'user',
+  setRole: r  => localStorage.setItem(ROLE_KEY, r),
+  clearRole: () => localStorage.removeItem(ROLE_KEY),
 
   async login(username, password) {
     const res = await fetch(BASE + '/auth/login', {
@@ -18,11 +23,13 @@ export const auth = {
     }
     const data = await res.json()
     auth.setToken(data.access_token)
+    auth.setRole(data.role ?? 'user')
     return data
   },
 
   logout() {
     auth.clearToken()
+    auth.clearRole()
     window.dispatchEvent(new Event('engeletra:logout'))
   },
 }
@@ -179,5 +186,11 @@ export const api = {
     create: d        => req('POST',   '/cronograma', d),
     update: (id, d)  => req('PUT',    `/cronograma/${id}`, d),
     delete: id       => req('DELETE', `/cronograma/${id}`),
+  },
+
+  users: {
+    list:   ()       => req('GET',    '/admin/users'),
+    create: d        => req('POST',   '/admin/users', d),
+    delete: id       => req('DELETE', `/admin/users/${id}`),
   },
 }

@@ -7,13 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import connect, init_db, row_to_dict, rows_to_dicts
-from .security import create_access_token, verify_password, verify_token
+from .security import create_access_token, hash_password, verify_password, verify_token, require_admin
 from .schemas import (
     ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn,
     ObraIn, TecnicoIn, EnsaioIn, VeiculoIn, FrotaKmIn,
     FornecedorIn, DespesaIn, ContaBancariaIn, PontoIn, FolhaIn,
     PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn,
-    LoginIn, TokenOut,
+    LoginIn, TokenOut, UserIn,
 )
 from .settings import ALLOWED_ORIGINS, STATIC_DIR
 
@@ -75,7 +75,8 @@ def login(data: LoginIn):
         row = conn.execute("SELECT * FROM users WHERE username=?", (data.username,)).fetchone()
     if not row or not verify_password(data.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
-    return TokenOut(access_token=create_access_token(data.username))
+    role = row["role"] or "user"
+    return TokenOut(access_token=create_access_token(data.username, role), role=role)
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -782,8 +783,44 @@ def delete_cronograma(cron_id: int):
         return {"deleted": True}
 
 
-# ─── Registrar router protegido ───────────────────────────────────────────────
+# ─── Gerenciamento de usuários (somente admin) ────────────────────────────────
+admin_router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
+
+
+@admin_router.get("/users")
+def list_users():
+    with connect() as conn:
+        rows = conn.execute("SELECT id, username, role, created_at FROM users ORDER BY id").fetchall()
+    return rows_to_dicts(rows)
+
+
+@admin_router.post("/users", status_code=201)
+def create_user(data: UserIn):
+    with connect() as conn:
+        if conn.execute("SELECT id FROM users WHERE username=?", (data.username,)).fetchone():
+            raise HTTPException(400, "Usuário já existe")
+        conn.execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+            (data.username, hash_password(data.password), "user"),
+        )
+    return {"ok": True}
+
+
+@admin_router.delete("/users/{user_id}")
+def delete_user(user_id: int, current_user: str = Depends(require_admin)):
+    with connect() as conn:
+        row = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Usuário não encontrado")
+        if row["username"] == current_user:
+            raise HTTPException(400, "Não é possível excluir sua própria conta")
+        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+    return {"ok": True}
+
+
+# ─── Registrar routers ────────────────────────────────────────────────────────
 app.include_router(protected)
+app.include_router(admin_router)
 
 if STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")

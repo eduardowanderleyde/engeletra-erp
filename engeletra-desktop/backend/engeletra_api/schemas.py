@@ -45,6 +45,12 @@ class EquipmentIn(BaseModel):
     proxima_manutencao: str | None = None
 
 
+class ImpostoItem(BaseModel):
+    nome: str
+    percentual: float
+    valor: float
+
+
 class QuoteIn(BaseModel):
     client_id: int
     pessoas: int = 1
@@ -57,6 +63,7 @@ class QuoteIn(BaseModel):
     munck: float = 1500
     observacoes: str | None = None
     status: str = "Rascunho"
+    impostos: list[ImpostoItem] | None = None
 
 
 class ServiceOrderIn(BaseModel):

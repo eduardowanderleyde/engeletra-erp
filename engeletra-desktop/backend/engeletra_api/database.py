@@ -24,16 +24,18 @@ def _has_column(conn, table: str, column: str) -> bool:
 def _migrate(conn) -> None:
     """Add columns introduced after the initial schema without destroying data."""
     migrations = [
-        ("service_orders", "obra_id",       "INTEGER REFERENCES obras(id) ON DELETE SET NULL"),
-        ("invoices",       "numero_nf",      "TEXT"),
-        ("invoices",       "inss",           "REAL DEFAULT 0"),
-        ("invoices",       "iss",            "REAL DEFAULT 0"),
-        ("invoices",       "pis",            "REAL DEFAULT 0"),
-        ("invoices",       "cofins",         "REAL DEFAULT 0"),
-        ("invoices",       "csll",           "REAL DEFAULT 0"),
-        ("invoices",       "irpj",           "REAL DEFAULT 0"),
-        ("invoices",       "valor_liquido",  "REAL DEFAULT 0"),
-        ("invoices",       "data_recebimento", "TEXT"),
+        ("service_orders", "obra_id",          "INTEGER REFERENCES obras(id) ON DELETE SET NULL"),
+        ("invoices",       "numero_nf",         "TEXT"),
+        ("invoices",       "inss",              "REAL DEFAULT 0"),
+        ("invoices",       "iss",               "REAL DEFAULT 0"),
+        ("invoices",       "pis",               "REAL DEFAULT 0"),
+        ("invoices",       "cofins",            "REAL DEFAULT 0"),
+        ("invoices",       "csll",              "REAL DEFAULT 0"),
+        ("invoices",       "irpj",              "REAL DEFAULT 0"),
+        ("invoices",       "valor_liquido",     "REAL DEFAULT 0"),
+        ("invoices",       "data_recebimento",  "TEXT"),
+        ("invoices",       "impostos",          "TEXT"),
+        ("quotes",         "impostos",          "TEXT"),
     ]
     for table, col, definition in migrations:
         if not _has_column(conn, table, col):

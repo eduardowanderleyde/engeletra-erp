@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
@@ -13,7 +14,7 @@ from .schemas import (
     ObraIn, TecnicoIn, EnsaioIn, VeiculoIn, FrotaKmIn,
     FornecedorIn, DespesaIn, ContaBancariaIn, PontoIn, FolhaIn,
     PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn,
-    LoginIn, TokenOut, UserIn,
+    LoginIn, TokenOut, UserIn, ImpostoItem,
 )
 from .settings import ALLOWED_ORIGINS, STATIC_DIR
 
@@ -179,10 +180,11 @@ def list_quotes():
 def create_quote(data: QuoteIn):
     total = quote_total(data)
     code = next_code("quotes", "ORC")
+    impostos_json = json.dumps([i.model_dump() for i in data.impostos]) if data.impostos else None
     with connect() as conn:
         cur = conn.execute(
-            "INSERT INTO quotes (code,client_id,pessoas,horas,km,veiculo,valor_hora,valor_km,materiais,munck,total,observacoes,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (code, data.client_id, data.pessoas, data.horas, data.km, data.veiculo, data.valor_hora, data.valor_km, data.materiais, data.munck, total, data.observacoes, data.status),
+            "INSERT INTO quotes (code,client_id,pessoas,horas,km,veiculo,valor_hora,valor_km,materiais,munck,total,observacoes,status,impostos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (code, data.client_id, data.pessoas, data.horas, data.km, data.veiculo, data.valor_hora, data.valor_km, data.materiais, data.munck, total, data.observacoes, data.status, impostos_json),
         )
         quote = row_to_dict(conn.execute("SELECT * FROM quotes WHERE id=?", (cur.lastrowid,)).fetchone())
     if data.status == "Aprovado":
@@ -239,14 +241,44 @@ def finish_service_order(order_id: int):
         existing = conn.execute("SELECT * FROM invoices WHERE service_order_id=?", (order_id,)).fetchone()
         if not existing:
             valor = order["valor_real"] or 0
-            imp = calc_impostos(valor)
-            liquido = round(valor - sum(imp.values()), 2)
+
+            # Usa impostos do orçamento vinculado; senão aplica os padrões
+            impostos_json = None
+            if order["quote_id"]:
+                q = conn.execute("SELECT impostos FROM quotes WHERE id=?", (order["quote_id"],)).fetchone()
+                if q and q["impostos"]:
+                    impostos_json = q["impostos"]
+
+            if impostos_json:
+                impostos_list = json.loads(impostos_json)
+                total_imp = sum(i["valor"] for i in impostos_list)
+                liquido = round(valor - total_imp, 2)
+                imp_map = {i["nome"].upper(): i["valor"] for i in impostos_list}
+                inss   = imp_map.get("INSS", 0)
+                iss    = imp_map.get("ISS", 0)
+                pis    = imp_map.get("PIS", 0)
+                cofins = imp_map.get("COFINS", 0)
+                csll   = imp_map.get("CSLL", 0)
+                irpj   = imp_map.get("IRPJ", 0)
+            else:
+                imp = calc_impostos(valor)
+                inss, iss, pis, cofins, csll, irpj = imp["inss"], imp["iss"], imp["pis"], imp["cofins"], imp["csll"], imp["irpj"]
+                liquido = round(valor - sum(imp.values()), 2)
+                impostos_json = json.dumps([
+                    {"nome": "INSS",   "percentual": 11.0,  "valor": inss},
+                    {"nome": "ISS",    "percentual": 5.0,   "valor": iss},
+                    {"nome": "PIS",    "percentual": 0.65,  "valor": pis},
+                    {"nome": "COFINS", "percentual": 3.0,   "valor": cofins},
+                    {"nome": "CSLL",   "percentual": 1.0,   "valor": csll},
+                    {"nome": "IRPJ",   "percentual": 1.5,   "valor": irpj},
+                ])
+
             invoice_code = next_code("invoices", "FAT")
-            emissao = date.today()
+            emissao   = date.today()
             vencimento = emissao + timedelta(days=30)
             conn.execute(
-                "INSERT INTO invoices (code,service_order_id,client_id,valor,inss,iss,pis,cofins,csll,irpj,valor_liquido,emissao,vencimento,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'Aberto')",
-                (invoice_code, order_id, order["client_id"], valor, imp["inss"], imp["iss"], imp["pis"], imp["cofins"], imp["csll"], imp["irpj"], liquido, emissao.isoformat(), vencimento.isoformat()),
+                "INSERT INTO invoices (code,service_order_id,client_id,valor,inss,iss,pis,cofins,csll,irpj,valor_liquido,emissao,vencimento,status,impostos) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'Aberto',?)",
+                (invoice_code, order_id, order["client_id"], valor, inss, iss, pis, cofins, csll, irpj, liquido, emissao.isoformat(), vencimento.isoformat(), impostos_json),
             )
         return row_to_dict(conn.execute("SELECT * FROM service_orders WHERE id=?", (order_id,)).fetchone())
 

@@ -9,6 +9,16 @@ const EMPTY = {
   materiais: 0, munck: 1500, observacoes: '', status: 'Rascunho',
 }
 
+const IMPOSTOS_PADRAO = [
+  { nome: 'INSS',   percentual: 11.0  },
+  { nome: 'ISS',    percentual: 5.0   },
+  { nome: 'PIS',    percentual: 0.65  },
+  { nome: 'COFINS', percentual: 3.0   },
+  { nome: 'CSLL',   percentual: 1.0   },
+  { nome: 'IRPJ',   percentual: 1.5   },
+  { nome: 'SEGURO', percentual: 5.0   },
+]
+
 function calcTotal(f) {
   const labor = Number(f.pessoas) * Number(f.horas) * Number(f.valor_hora)
   const travel = Number(f.km) * Number(f.valor_km)
@@ -18,12 +28,17 @@ function calcTotal(f) {
 }
 
 export default function Quotes() {
-  const [quotes, setQuotes] = useState([])
+  const [quotes, setQuotes]   = useState([])
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(false)
-  const [form, setForm] = useState(EMPTY)
-  const [saving, setSaving] = useState(false)
+  const [modal, setModal]     = useState(false)
+  const [form, setForm]       = useState(EMPTY)
+  const [impostos, setImpostos] = useState([])
+  const [selectImp, setSelectImp] = useState('')
+  const [customNome, setCustomNome] = useState('')
+  const [customPerc, setCustomPerc] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
+  const [saving, setSaving]   = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -46,7 +61,59 @@ export default function Quotes() {
 
   function openNew() {
     setForm(EMPTY)
+    setImpostos([])
+    setSelectImp('')
+    setShowCustom(false)
     setModal(true)
+  }
+
+  function handleSelectImp(val) {
+    setSelectImp(val)
+    if (val === '__custom__') {
+      setShowCustom(true)
+      return
+    }
+    if (!val) return
+    const padrao = IMPOSTOS_PADRAO.find(i => i.nome === val)
+    if (!padrao) return
+    if (impostos.find(i => i.nome === padrao.nome)) return // já existe
+    addImposto(padrao.nome, padrao.percentual)
+    setSelectImp('')
+  }
+
+  function addImposto(nome, percentual) {
+    const total = calcTotal(form)
+    const valor = round2(total * (Number(percentual) / 100))
+    setImpostos(prev => [...prev, { nome: nome.trim().toUpperCase(), percentual: Number(percentual), valor }])
+  }
+
+  function addCustom() {
+    if (!customNome.trim()) { alert('Informe o nome do imposto.'); return }
+    if (!customPerc || isNaN(customPerc) || Number(customPerc) <= 0) { alert('Informe um percentual válido.'); return }
+    if (impostos.find(i => i.nome === customNome.trim().toUpperCase())) { alert('Imposto já adicionado.'); return }
+    addImposto(customNome, customPerc)
+    setCustomNome('')
+    setCustomPerc('')
+    setShowCustom(false)
+    setSelectImp('')
+  }
+
+  function removeImposto(nome) {
+    setImpostos(prev => prev.filter(i => i.nome !== nome))
+  }
+
+  // Recalculate imposto values whenever total changes
+  function recalcImpostos(newForm) {
+    const total = calcTotal(newForm)
+    setImpostos(prev => prev.map(i => ({ ...i, valor: round2(total * (i.percentual / 100)) })))
+  }
+
+  function setField(k) {
+    return e => {
+      const newForm = { ...form, [k]: e.target.value }
+      setForm(newForm)
+      recalcImpostos(newForm)
+    }
   }
 
   async function save() {
@@ -56,13 +123,14 @@ export default function Quotes() {
       await api.quotes.create({
         ...form,
         client_id: Number(form.client_id),
-        pessoas: Number(form.pessoas),
-        horas: Number(form.horas),
-        km: Number(form.km),
+        pessoas:   Number(form.pessoas),
+        horas:     Number(form.horas),
+        km:        Number(form.km),
         valor_hora: Number(form.valor_hora),
-        valor_km: Number(form.valor_km),
+        valor_km:  Number(form.valor_km),
         materiais: Number(form.materiais),
-        munck: Number(form.munck),
+        munck:     Number(form.munck),
+        impostos:  impostos.length > 0 ? impostos : null,
       })
       setModal(false)
       loadAll()
@@ -83,10 +151,11 @@ export default function Quotes() {
     }
   }
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const num = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const total     = calcTotal(form)
+  const totalImp  = impostos.reduce((s, i) => s + i.valor, 0)
+  const liquido   = total - totalImp
 
-  const total = calcTotal(form)
+  const nomesAdicionados = new Set(impostos.map(i => i.nome))
 
   return (
     <div>
@@ -104,7 +173,9 @@ export default function Quotes() {
               <th>Pessoas</th>
               <th>Horas</th>
               <th>Veículo</th>
-              <th>Total</th>
+              <th>Total Bruto</th>
+              <th>Impostos</th>
+              <th>Valor Líquido</th>
               <th>Status</th>
               <th>Data</th>
               <th>Ações</th>
@@ -112,42 +183,56 @@ export default function Quotes() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="td-center">Carregando...</td></tr>
+              <tr><td colSpan={11} className="td-center">Carregando...</td></tr>
             ) : quotes.length === 0 ? (
-              <tr><td colSpan={9} className="td-center">Nenhum orçamento cadastrado.</td></tr>
-            ) : quotes.map(q => (
-              <tr key={q.id}>
-                <td><strong>{q.code}</strong></td>
-                <td>{clientName(q.client_id)}</td>
-                <td>{q.pessoas}</td>
-                <td>{q.horas}h</td>
-                <td>{q.veiculo}</td>
-                <td><strong>{fmtMoney(q.total)}</strong></td>
-                <td><span className={`badge badge-${statusColor(q.status)}`}>{q.status}</span></td>
-                <td>{fmtDate(q.created_at)}</td>
-                <td>
-                  {q.status !== 'Aprovado' && q.status !== 'Reprovado' && (
-                    <button className="btn btn-sm btn-success" onClick={() => approve(q)}>
-                      Aprovar
-                    </button>
-                  )}
-                  {q.service_order_id && (
-                    <span className="info-tag" style={{ marginLeft: 8 }}>OS gerada</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan={11} className="td-center">Nenhum orçamento cadastrado.</td></tr>
+            ) : quotes.map(q => {
+              const imps = q.impostos ? JSON.parse(q.impostos) : []
+              const totalImps = imps.reduce((s, i) => s + i.valor, 0)
+              return (
+                <tr key={q.id}>
+                  <td><strong>{q.code}</strong></td>
+                  <td>{clientName(q.client_id)}</td>
+                  <td>{q.pessoas}</td>
+                  <td>{q.horas}h</td>
+                  <td>{q.veiculo}</td>
+                  <td><strong>{fmtMoney(q.total)}</strong></td>
+                  <td>
+                    {imps.length > 0
+                      ? <span style={{ fontSize: 12, color: '#ef4444' }}>- {fmtMoney(totalImps)}</span>
+                      : <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>}
+                  </td>
+                  <td>
+                    {imps.length > 0
+                      ? <strong style={{ color: '#16a34a' }}>{fmtMoney(q.total - totalImps)}</strong>
+                      : <strong>{fmtMoney(q.total)}</strong>}
+                  </td>
+                  <td><span className={`badge badge-${statusColor(q.status)}`}>{q.status}</span></td>
+                  <td>{fmtDate(q.created_at)}</td>
+                  <td>
+                    {q.status !== 'Aprovado' && q.status !== 'Reprovado' && (
+                      <button className="btn btn-sm btn-success" onClick={() => approve(q)}>
+                        Aprovar
+                      </button>
+                    )}
+                    {q.service_order_id && (
+                      <span className="info-tag" style={{ marginLeft: 8 }}>OS gerada</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
 
       {modal && (
-        <Modal title="Novo Orçamento" onClose={() => setModal(false)} width={680}>
+        <Modal title="Novo Orçamento" onClose={() => setModal(false)} width={720}>
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label">Cliente *</label>
-                <select className="form-input" value={form.client_id} onChange={set('client_id')}>
+                <select className="form-input" value={form.client_id} onChange={setField('client_id')}>
                   <option value="">Selecione um cliente...</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.fantasia || c.razao}</option>
@@ -160,15 +245,15 @@ export default function Quotes() {
             <div className="form-row-3">
               <div className="form-group">
                 <label className="form-label">Nº de Pessoas</label>
-                <input className="form-input" type="number" min={1} value={form.pessoas} onChange={num('pessoas')} />
+                <input className="form-input" type="number" min={1} value={form.pessoas} onChange={setField('pessoas')} />
               </div>
               <div className="form-group">
                 <label className="form-label">Horas Previstas</label>
-                <input className="form-input" type="number" min={0} step={0.5} value={form.horas} onChange={num('horas')} />
+                <input className="form-input" type="number" min={0} step={0.5} value={form.horas} onChange={setField('horas')} />
               </div>
               <div className="form-group">
                 <label className="form-label">Valor / Hora (R$)</label>
-                <input className="form-input" type="number" min={0} step={1} value={form.valor_hora} onChange={num('valor_hora')} />
+                <input className="form-input" type="number" min={0} step={1} value={form.valor_hora} onChange={setField('valor_hora')} />
               </div>
             </div>
 
@@ -176,7 +261,7 @@ export default function Quotes() {
             <div className="form-row-3">
               <div className="form-group">
                 <label className="form-label">Veículo</label>
-                <select className="form-input" value={form.veiculo} onChange={set('veiculo')}>
+                <select className="form-input" value={form.veiculo} onChange={setField('veiculo')}>
                   <option>Carro</option>
                   <option>Caminhão</option>
                   <option>Munck</option>
@@ -184,18 +269,18 @@ export default function Quotes() {
               </div>
               <div className="form-group">
                 <label className="form-label">KM Rodado</label>
-                <input className="form-input" type="number" min={0} value={form.km} onChange={num('km')} />
+                <input className="form-input" type="number" min={0} value={form.km} onChange={setField('km')} />
               </div>
               <div className="form-group">
                 <label className="form-label">Valor / KM (R$)</label>
-                <input className="form-input" type="number" min={0} step={0.1} value={form.valor_km} onChange={num('valor_km')} />
+                <input className="form-input" type="number" min={0} step={0.1} value={form.valor_km} onChange={setField('valor_km')} />
               </div>
             </div>
 
             {form.veiculo === 'Munck' && (
               <div className="form-group">
                 <label className="form-label">Adicional Munck (R$)</label>
-                <input className="form-input" type="number" min={0} value={form.munck} onChange={num('munck')} />
+                <input className="form-input" type="number" min={0} value={form.munck} onChange={setField('munck')} />
               </div>
             )}
 
@@ -203,11 +288,11 @@ export default function Quotes() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Materiais Previstos (R$)</label>
-                <input className="form-input" type="number" min={0} step={0.01} value={form.materiais} onChange={num('materiais')} />
+                <input className="form-input" type="number" min={0} step={0.01} value={form.materiais} onChange={setField('materiais')} />
               </div>
               <div className="form-group">
                 <label className="form-label">Status</label>
-                <select className="form-input" value={form.status} onChange={set('status')}>
+                <select className="form-input" value={form.status} onChange={setField('status')}>
                   <option>Rascunho</option>
                   <option>Enviado</option>
                   <option>Aprovado</option>
@@ -218,12 +303,100 @@ export default function Quotes() {
 
             <div className="form-group">
               <label className="form-label">Observações</label>
-              <textarea className="form-input" rows={3} value={form.observacoes} onChange={set('observacoes')} />
+              <textarea className="form-input" rows={2} value={form.observacoes} onChange={setField('observacoes')} />
             </div>
 
-            <div className="calc-preview">
-              <span className="calc-label">Total calculado</span>
-              <span className="calc-value">{fmtMoney(total)}</span>
+            {/* ── Impostos ── */}
+            <div className="form-section">Impostos / Retenções</div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+              <select
+                className="form-input"
+                style={{ flex: 1, minWidth: 200 }}
+                value={selectImp}
+                onChange={e => handleSelectImp(e.target.value)}
+              >
+                <option value="">+ Adicionar imposto...</option>
+                {IMPOSTOS_PADRAO.map(i => (
+                  <option key={i.nome} value={i.nome} disabled={nomesAdicionados.has(i.nome)}>
+                    {i.nome} — {i.percentual}%{nomesAdicionados.has(i.nome) ? ' (já adicionado)' : ''}
+                  </option>
+                ))}
+                <option value="__custom__">Personalizado...</option>
+              </select>
+            </div>
+
+            {showCustom && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, background: '#f8fafc', borderRadius: 8, padding: '10px 12px', border: '1px solid #e2e8f0' }}>
+                <input
+                  className="form-input"
+                  style={{ flex: 2 }}
+                  placeholder="Nome (ex: ISS Municipal)"
+                  value={customNome}
+                  onChange={e => setCustomNome(e.target.value)}
+                />
+                <input
+                  className="form-input"
+                  style={{ width: 100 }}
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="% alíquota"
+                  value={customPerc}
+                  onChange={e => setCustomPerc(e.target.value)}
+                />
+                <button className="btn btn-primary btn-sm" onClick={addCustom}>Adicionar</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setShowCustom(false); setSelectImp('') }}>Cancelar</button>
+              </div>
+            )}
+
+            {impostos.length > 0 && (
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', marginBottom: 4 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9' }}>
+                      <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 600 }}>Imposto</th>
+                      <th style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>Alíquota</th>
+                      <th style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>Valor (R$)</th>
+                      <th style={{ padding: '6px 4px', width: 32 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {impostos.map((imp, idx) => (
+                      <tr key={imp.nome} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined }}>
+                        <td style={{ padding: '6px 12px', fontWeight: 500 }}>{imp.nome}</td>
+                        <td style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b' }}>{imp.percentual}%</td>
+                        <td style={{ padding: '6px 12px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>- {fmtMoney(imp.valor)}</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => removeImposto(imp.nome)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, lineHeight: 1 }}
+                            title="Remover"
+                          >✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ── Resumo financeiro ── */}
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: '12px 16px', marginTop: 8, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748b', marginBottom: 4 }}>
+                <span>Total bruto</span>
+                <span>{fmtMoney(total)}</span>
+              </div>
+              {impostos.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#ef4444', marginBottom: 4 }}>
+                  <span>(−) Total de impostos</span>
+                  <span>- {fmtMoney(totalImp)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, borderTop: '1px solid #e2e8f0', paddingTop: 8, marginTop: 4 }}>
+                <span>Valor líquido</span>
+                <span style={{ color: '#16a34a' }}>{fmtMoney(liquido)}</span>
+              </div>
             </div>
           </div>
 
@@ -237,4 +410,8 @@ export default function Quotes() {
       )}
     </div>
   )
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100
 }

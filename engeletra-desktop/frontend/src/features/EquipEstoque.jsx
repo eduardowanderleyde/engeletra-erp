@@ -160,23 +160,55 @@ function TabEquipamentos() {
 const ST_EMPTY = { item: '', categoria: '', unidade: 'un', saldo: 0, minimo: 0, custo: 0 }
 
 function TabEstoque() {
-  const [items, setItems]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [modal, setModal]   = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm]     = useState(ST_EMPTY)
-  const [saving, setSaving] = useState(false)
+  const [items, setItems]         = useState([])
+  const [equipList, setEquipList] = useState([])
+  const [clients, setClients]     = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [modal, setModal]         = useState(false)
+  const [editing, setEditing]     = useState(null)
+  const [form, setForm]           = useState(ST_EMPTY)
+  const [saving, setSaving]       = useState(false)
+  const [search, setSearch]       = useState('')
+  const [showDrop, setShowDrop]   = useState(false)
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    try { setItems(await api.stock.list()) }
+    try {
+      const [st, eq, cl] = await Promise.all([api.stock.list(), api.equipment.list(), api.clients.list()])
+      setItems(st); setEquipList(eq); setClients(cl)
+    }
     catch (e) { alert(e.message) }
     finally { setLoading(false) }
   }
 
-  function openNew()  { setEditing(null); setForm(ST_EMPTY); setModal(true) }
-  function openEdit(it) { setEditing(it); setForm({ ...ST_EMPTY, ...it }); setModal(true) }
+  const clientName = id => clients.find(c => c.id === id)?.fantasia || clients.find(c => c.id === id)?.razao || ''
+
+  function equipLabel(eq) {
+    const parts = [eq.tipo]
+    if (eq.serie) parts.push(`Série ${eq.serie}`)
+    if (eq.potencia) parts.push(eq.potencia)
+    const cli = clientName(eq.client_id)
+    if (cli) parts.push(`— ${cli}`)
+    return parts.join(' ')
+  }
+
+  const filteredEquip = search.trim()
+    ? equipList.filter(eq => equipLabel(eq).toLowerCase().includes(search.toLowerCase()))
+    : equipList
+
+  function selectEquip(eq) {
+    setForm(f => ({ ...f, item: equipLabel(eq) }))
+    setSearch(equipLabel(eq))
+    setShowDrop(false)
+  }
+
+  function openNew() {
+    setEditing(null); setForm(ST_EMPTY); setSearch(''); setShowDrop(false); setModal(true)
+  }
+  function openEdit(it) {
+    setEditing(it); setForm({ ...ST_EMPTY, ...it }); setSearch(it.item); setShowDrop(false); setModal(true)
+  }
 
   async function save() {
     if (!form.item.trim()) { alert('Nome do item é obrigatório.'); return }
@@ -240,15 +272,57 @@ function TabEstoque() {
       {modal && (
         <Modal title={editing ? 'Editar Item' : 'Novo Item de Estoque'} onClose={() => setModal(false)} width={560}>
           <div className="modal-body">
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Item *</label>
-                <input className="form-input" value={form.item} onChange={set('item')} placeholder="ex: Fusível 10A" />
+            <div className="form-group">
+              <label className="form-label">Equipamento *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setShowDrop(true); setForm(f => ({ ...f, item: e.target.value })) }}
+                  onFocus={() => setShowDrop(true)}
+                  onBlur={() => setTimeout(() => setShowDrop(false), 150)}
+                  placeholder="Buscar equipamento cadastrado..."
+                  autoComplete="off"
+                />
+                {showDrop && filteredEquip.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.10)', maxHeight: 220, overflowY: 'auto',
+                  }}>
+                    {filteredEquip.map(eq => (
+                      <div
+                        key={eq.id}
+                        onMouseDown={() => selectEquip(eq)}
+                        style={{
+                          padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                      >
+                        <div style={{ fontWeight: 600 }}>{eq.tipo}{eq.serie ? ` — Série ${eq.serie}` : ''}</div>
+                        <div style={{ color: '#64748b', fontSize: 12 }}>
+                          {[eq.potencia, eq.fabricante, clientName(eq.client_id)].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showDrop && search.trim() && filteredEquip.length === 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                    padding: '10px 14px', fontSize: 13, color: '#94a3b8',
+                  }}>
+                    Nenhum equipamento encontrado.
+                  </div>
+                )}
               </div>
-              <div className="form-group">
-                <label className="form-label">Categoria</label>
-                <input className="form-input" value={form.categoria} onChange={set('categoria')} placeholder="ex: Proteção" />
-              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Categoria</label>
+              <input className="form-input" value={form.categoria} onChange={set('categoria')} placeholder="ex: Proteção" />
             </div>
             <div className="form-row-3">
               <div className="form-group">

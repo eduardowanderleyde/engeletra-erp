@@ -44,6 +44,32 @@ def _migrate(conn) -> None:
         "CREATE INDEX IF NOT EXISTS idx_so_obra ON service_orders(obra_id)"
     )
 
+    # Remove NOT NULL de equipment.client_id (requer recriar a tabela no SQLite)
+    eq_cols = conn.execute("PRAGMA table_info(equipment)").fetchall()
+    col = next((r for r in eq_cols if r["name"] == "client_id"), None)
+    if col and col["notnull"]:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS _equipment_new (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id           INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+                tipo                TEXT NOT NULL,
+                serie               TEXT,
+                potencia            TEXT,
+                tensao              TEXT,
+                fabricante          TEXT,
+                ano                 INTEGER,
+                localizacao         TEXT,
+                ultima_manutencao   TEXT,
+                proxima_manutencao  TEXT
+            );
+            INSERT INTO _equipment_new SELECT * FROM equipment;
+            DROP TABLE equipment;
+            ALTER TABLE _equipment_new RENAME TO equipment;
+        """)
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_equipment_client ON equipment(client_id)")
+
 
 def _seed_admin(conn) -> None:
     from .security import hash_password
@@ -81,7 +107,7 @@ def init_db() -> None:
             -- ─── Equipamentos ─────────────────────────────────────────
             CREATE TABLE IF NOT EXISTS equipment (
                 id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                client_id           INTEGER NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
+                client_id           INTEGER REFERENCES clients(id) ON DELETE SET NULL,
                 tipo                TEXT NOT NULL,
                 serie               TEXT,
                 potencia            TEXT,

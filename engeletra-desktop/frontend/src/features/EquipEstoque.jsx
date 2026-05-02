@@ -39,11 +39,10 @@ function TabEquipamentos() {
   }
 
   async function save() {
-    if (!form.client_id) { alert('Selecione um cliente.'); return }
     if (!form.tipo.trim()) { alert('Tipo do equipamento é obrigatório.'); return }
     setSaving(true)
     try {
-      const payload = { ...form, client_id: Number(form.client_id), ano: form.ano ? Number(form.ano) : null }
+      const payload = { ...form, client_id: form.client_id ? Number(form.client_id) : null, ano: form.ano ? Number(form.ano) : null }
       editing ? await api.equipment.update(editing.id, payload) : await api.equipment.create(payload)
       setModal(false); loadAll()
     } catch (e) { alert(e.message) }
@@ -93,13 +92,6 @@ function TabEquipamentos() {
       {modal && (
         <Modal title={editing ? 'Editar Equipamento' : 'Novo Equipamento'} onClose={() => setModal(false)} width={660}>
           <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Cliente *</label>
-              <select className="form-input" value={form.client_id} onChange={set('client_id')}>
-                <option value="">Selecione...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.fantasia || c.razao}</option>)}
-              </select>
-            </div>
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Tipo *</label>

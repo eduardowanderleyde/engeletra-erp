@@ -33,7 +33,7 @@ class ClientIn(BaseModel):
 
 
 class EquipmentIn(BaseModel):
-    client_id: int
+    client_id: int | None = None
     tipo: str
     serie: str | None = None
     potencia: str | None = None

@@ -80,9 +80,10 @@ export const api = {
   },
 
   quotes: {
-    list:    ()   => req('GET',  '/quotes'),
-    create:  d    => req('POST', '/quotes', d),
-    approve: id   => req('POST', `/quotes/${id}/approve`),
+    list:    ()       => req('GET',  '/quotes'),
+    create:  d        => req('POST', '/quotes', d),
+    update:  (id, d)  => req('PUT',  `/quotes/${id}`, d),
+    approve: id       => req('POST', `/quotes/${id}/approve`),
   },
 
   serviceOrders: {

@@ -192,6 +192,21 @@ def create_quote(data: QuoteIn):
     return quote
 
 
+@protected.put("/quotes/{quote_id}")
+def update_quote(quote_id: int, data: QuoteIn):
+    total = quote_total(data)
+    impostos_json = json.dumps([i.model_dump() for i in data.impostos]) if data.impostos else None
+    with connect() as conn:
+        row = conn.execute("SELECT id FROM quotes WHERE id=?", (quote_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Orçamento não encontrado")
+        conn.execute(
+            "UPDATE quotes SET client_id=?,pessoas=?,horas=?,km=?,veiculo=?,valor_hora=?,valor_km=?,materiais=?,munck=?,total=?,observacoes=?,status=?,impostos=? WHERE id=?",
+            (data.client_id, data.pessoas, data.horas, data.km, data.veiculo, data.valor_hora, data.valor_km, data.materiais, data.munck, total, data.observacoes, data.status, impostos_json, quote_id),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM quotes WHERE id=?", (quote_id,)).fetchone())
+
+
 @protected.post("/quotes/{quote_id}/approve")
 def approve_quote(quote_id: int):
     with connect() as conn:

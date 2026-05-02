@@ -32,6 +32,7 @@ export default function Quotes() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(false)
+  const [editing, setEditing] = useState(null)
   const [form, setForm]       = useState(EMPTY)
   const [impostos, setImpostos] = useState([])
   const [selectImp, setSelectImp] = useState('')
@@ -60,8 +61,30 @@ export default function Quotes() {
   }
 
   function openNew() {
+    setEditing(null)
     setForm(EMPTY)
     setImpostos([])
+    setSelectImp('')
+    setShowCustom(false)
+    setModal(true)
+  }
+
+  function openEdit(q) {
+    setEditing(q)
+    setForm({
+      client_id:  q.client_id,
+      pessoas:    q.pessoas,
+      horas:      q.horas,
+      km:         q.km,
+      veiculo:    q.veiculo,
+      valor_hora: q.valor_hora,
+      valor_km:   q.valor_km,
+      materiais:  q.materiais,
+      munck:      q.munck,
+      observacoes: q.observacoes || '',
+      status:     q.status,
+    })
+    setImpostos(q.impostos ? JSON.parse(q.impostos) : [])
     setSelectImp('')
     setShowCustom(false)
     setModal(true)
@@ -129,19 +152,22 @@ export default function Quotes() {
   async function save() {
     if (!form.client_id) { alert('Selecione um cliente.'); return }
     setSaving(true)
+    const payload = {
+      ...form,
+      client_id:  Number(form.client_id),
+      pessoas:    Number(form.pessoas),
+      horas:      Number(form.horas),
+      km:         Number(form.km),
+      valor_hora: Number(form.valor_hora),
+      valor_km:   Number(form.valor_km),
+      materiais:  Number(form.materiais),
+      munck:      Number(form.munck),
+      impostos:   impostos.length > 0 ? impostos : null,
+    }
     try {
-      await api.quotes.create({
-        ...form,
-        client_id: Number(form.client_id),
-        pessoas:   Number(form.pessoas),
-        horas:     Number(form.horas),
-        km:        Number(form.km),
-        valor_hora: Number(form.valor_hora),
-        valor_km:  Number(form.valor_km),
-        materiais: Number(form.materiais),
-        munck:     Number(form.munck),
-        impostos:  impostos.length > 0 ? impostos : null,
-      })
+      editing
+        ? await api.quotes.update(editing.id, payload)
+        : await api.quotes.create(payload)
       setModal(false)
       loadAll()
     } catch (e) {
@@ -219,14 +245,15 @@ export default function Quotes() {
                   </td>
                   <td><span className={`badge badge-${statusColor(q.status)}`}>{q.status}</span></td>
                   <td>{fmtDate(q.created_at)}</td>
-                  <td>
+                  <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <button className="btn btn-sm btn-ghost" onClick={() => openEdit(q)}>Editar</button>
                     {q.status !== 'Aprovado' && q.status !== 'Reprovado' && (
                       <button className="btn btn-sm btn-success" onClick={() => approve(q)}>
                         Aprovar
                       </button>
                     )}
                     {q.service_order_id && (
-                      <span className="info-tag" style={{ marginLeft: 8 }}>OS gerada</span>
+                      <span className="info-tag" style={{ marginLeft: 4 }}>OS gerada</span>
                     )}
                   </td>
                 </tr>
@@ -237,7 +264,7 @@ export default function Quotes() {
       </div>
 
       {modal && (
-        <Modal title="Novo Orçamento" onClose={() => setModal(false)} width={720}>
+        <Modal title={editing ? `Editar Orçamento — ${editing.code}` : 'Novo Orçamento'} onClose={() => setModal(false)} width={720}>
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -425,7 +452,7 @@ export default function Quotes() {
           <div className="modal-footer">
             <button className="btn btn-ghost" onClick={() => setModal(false)}>Cancelar</button>
             <button className="btn btn-primary" onClick={save} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar Orçamento'}
+              {saving ? 'Salvando...' : editing ? 'Salvar Alterações' : 'Salvar Orçamento'}
             </button>
           </div>
         </Modal>

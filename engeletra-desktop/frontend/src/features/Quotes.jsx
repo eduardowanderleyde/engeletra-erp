@@ -102,6 +102,16 @@ export default function Quotes() {
     setImpostos(prev => prev.filter(i => i.nome !== nome))
   }
 
+  function updatePercImposto(nome, percStr) {
+    const perc = parseFloat(percStr) || 0
+    const total = calcTotal(form)
+    setImpostos(prev => prev.map(i =>
+      i.nome === nome
+        ? { ...i, percentual: perc, valor: round2(total * (perc / 100)) }
+        : i
+    ))
+  }
+
   // Recalculate imposto values whenever total changes
   function recalcImpostos(newForm) {
     const total = calcTotal(newForm)
@@ -365,7 +375,19 @@ export default function Quotes() {
                     {impostos.map((imp, idx) => (
                       <tr key={imp.nome} style={{ borderTop: idx > 0 ? '1px solid #f1f5f9' : undefined }}>
                         <td style={{ padding: '6px 12px', fontWeight: 500 }}>{imp.nome}</td>
-                        <td style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b' }}>{imp.percentual}%</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={imp.percentual}
+                              onChange={e => updatePercImposto(imp.nome, e.target.value)}
+                              style={{ width: 72, textAlign: 'right', padding: '2px 6px', fontSize: 13, border: '1px solid #e2e8f0', borderRadius: 4 }}
+                            />
+                            <span style={{ color: '#64748b', fontSize: 13 }}>%</span>
+                          </div>
+                        </td>
                         <td style={{ padding: '6px 12px', textAlign: 'right', color: '#ef4444', fontWeight: 600 }}>- {fmtMoney(imp.valor)}</td>
                         <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                           <button

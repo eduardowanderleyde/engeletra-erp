@@ -1,6 +1,6 @@
 export default function Modal({ title, onClose, children, width = 600 }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div
         className="modal-box"
         style={{ maxWidth: width }}

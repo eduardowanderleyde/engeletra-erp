@@ -254,7 +254,21 @@ class CronogramaIn(BaseModel):
     descricao: str | None = None
 
 
+class InvoiceCreateIn(BaseModel):
+    client_id: int
+    valor: float
+    emissao: str
+    vencimento: str
+    numero_nf: str | None = None
+    status: str = "Aberto"
+    impostos: list[ImpostoItem] | None = None
+
+
 class InvoiceUpdateIn(BaseModel):
     status: str
     numero_nf: str | None = None
     data_recebimento: str | None = None
+    valor: float | None = None
+    emissao: str | None = None
+    vencimento: str | None = None
+    impostos: list[ImpostoItem] | None = None

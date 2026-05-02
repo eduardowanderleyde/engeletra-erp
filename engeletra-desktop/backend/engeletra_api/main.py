@@ -13,7 +13,7 @@ from .schemas import (
     ClientIn, EquipmentIn, QuoteIn, ServiceOrderIn, StockItemIn,
     ObraIn, TecnicoIn, EnsaioIn, VeiculoIn, FrotaKmIn,
     FornecedorIn, DespesaIn, ContaBancariaIn, PontoIn, FolhaIn,
-    PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn,
+    PedidoCompraIn, FrotaManutIn, CronogramaIn, InvoiceUpdateIn, InvoiceCreateIn,
     LoginIn, TokenOut, UserIn, ImpostoItem,
 )
 from .settings import ALLOWED_ORIGINS, STATIC_DIR
@@ -334,17 +334,43 @@ def list_invoices():
         return rows_to_dicts(conn.execute("SELECT * FROM invoices ORDER BY id DESC").fetchall())
 
 
+@protected.post("/invoices", status_code=201)
+def create_invoice(data: InvoiceCreateIn):
+    impostos_json = json.dumps([i.model_dump() for i in data.impostos]) if data.impostos else None
+    total_imp = sum(i.valor for i in data.impostos) if data.impostos else 0
+    liquido = round(data.valor - total_imp, 2)
+    inss = cofins = csll = irpj = pis = iss = 0.0
+    if data.impostos:
+        imp_map = {i.nome.upper(): i.valor for i in data.impostos}
+        inss = imp_map.get("INSS", 0); iss = imp_map.get("ISS", 0)
+        pis  = imp_map.get("PIS",  0); cofins = imp_map.get("COFINS", 0)
+        csll = imp_map.get("CSLL", 0); irpj   = imp_map.get("IRPJ", 0)
+    code = next_code("invoices", "FAT")
+    with connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO invoices (code,service_order_id,client_id,valor,inss,iss,pis,cofins,csll,irpj,valor_liquido,emissao,vencimento,numero_nf,status,impostos) VALUES (?,NULL,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (code, data.client_id, data.valor, inss, iss, pis, cofins, csll, irpj, liquido, data.emissao, data.vencimento, data.numero_nf, data.status, impostos_json),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM invoices WHERE id=?", (cur.lastrowid,)).fetchone())
+
+
 @protected.put("/invoices/{invoice_id}")
 def update_invoice(invoice_id: int, data: InvoiceUpdateIn):
     with connect() as conn:
-        conn.execute(
-            "UPDATE invoices SET status=?, numero_nf=?, data_recebimento=? WHERE id=?",
-            (data.status, data.numero_nf, data.data_recebimento, invoice_id),
-        )
         row = conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone()
         if not row:
             raise HTTPException(404, "Fatura não encontrada")
-        return row_to_dict(row)
+        valor    = data.valor    if data.valor    is not None else row["valor"]
+        emissao  = data.emissao  if data.emissao  is not None else row["emissao"]
+        venc     = data.vencimento if data.vencimento is not None else row["vencimento"]
+        imp_json = json.dumps([i.model_dump() for i in data.impostos]) if data.impostos is not None else row["impostos"]
+        total_imp = sum(i.valor for i in data.impostos) if data.impostos else 0
+        liquido  = round(valor - total_imp, 2) if data.impostos is not None or data.valor is not None else row["valor_liquido"]
+        conn.execute(
+            "UPDATE invoices SET status=?,numero_nf=?,data_recebimento=?,valor=?,emissao=?,vencimento=?,impostos=?,valor_liquido=? WHERE id=?",
+            (data.status, data.numero_nf, data.data_recebimento, valor, emissao, venc, imp_json, liquido, invoice_id),
+        )
+        return row_to_dict(conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone())
 
 
 # ─── Stock ────────────────────────────────────────────────────────────────────

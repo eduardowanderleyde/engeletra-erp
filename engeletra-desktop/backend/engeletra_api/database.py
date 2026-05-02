@@ -44,6 +44,40 @@ def _migrate(conn) -> None:
         "CREATE INDEX IF NOT EXISTS idx_so_obra ON service_orders(obra_id)"
     )
 
+    # Remove NOT NULL de invoices.service_order_id
+    inv_cols = conn.execute("PRAGMA table_info(invoices)").fetchall()
+    so_col = next((r for r in inv_cols if r["name"] == "service_order_id"), None)
+    if so_col and so_col["notnull"]:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS _invoices_new (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                code             TEXT UNIQUE NOT NULL,
+                service_order_id INTEGER REFERENCES service_orders(id) ON DELETE SET NULL,
+                client_id        INTEGER NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
+                numero_nf        TEXT,
+                valor            REAL NOT NULL,
+                inss             REAL DEFAULT 0,
+                iss              REAL DEFAULT 0,
+                pis              REAL DEFAULT 0,
+                cofins           REAL DEFAULT 0,
+                csll             REAL DEFAULT 0,
+                irpj             REAL DEFAULT 0,
+                valor_liquido    REAL DEFAULT 0,
+                emissao          TEXT NOT NULL,
+                vencimento       TEXT NOT NULL,
+                data_recebimento TEXT,
+                impostos         TEXT,
+                status           TEXT DEFAULT 'Aberto'
+            );
+            INSERT INTO _invoices_new SELECT id,code,service_order_id,client_id,numero_nf,valor,inss,iss,pis,cofins,csll,irpj,valor_liquido,emissao,vencimento,data_recebimento,impostos,status FROM invoices;
+            DROP TABLE invoices;
+            ALTER TABLE _invoices_new RENAME TO invoices;
+        """)
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)")
+
     # Remove NOT NULL de equipment.client_id (requer recriar a tabela no SQLite)
     eq_cols = conn.execute("PRAGMA table_info(equipment)").fetchall()
     col = next((r for r in eq_cols if r["name"] == "client_id"), None)
@@ -162,7 +196,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS invoices (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 code             TEXT UNIQUE NOT NULL,
-                service_order_id INTEGER NOT NULL REFERENCES service_orders(id) ON DELETE RESTRICT,
+                service_order_id INTEGER REFERENCES service_orders(id) ON DELETE SET NULL,
                 client_id        INTEGER NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
                 numero_nf        TEXT,
                 valor            REAL NOT NULL,

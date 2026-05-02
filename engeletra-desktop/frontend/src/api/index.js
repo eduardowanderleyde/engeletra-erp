@@ -132,8 +132,9 @@ export const api = {
   },
 
   invoices: {
-    list:   ()       => req('GET',  '/invoices'),
-    update: (id, d)  => req('PUT',  `/invoices/${id}`, d),
+    list:   ()       => req('GET',    '/invoices'),
+    create: d        => req('POST',   '/invoices', d),
+    update: (id, d)  => req('PUT',    `/invoices/${id}`, d),
   },
 
   fornecedores: {

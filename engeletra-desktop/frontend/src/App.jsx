@@ -53,29 +53,26 @@ const NAV_GROUPS = [
     id: 'frota',
     label: 'FROTA',
     items: [
-      { key: 'veiculos',     label: 'Veículos',           icon: '🚗' },
-      { key: 'frota-km',     label: 'Controle Diário KM', icon: '📍' },
-      { key: 'frota-manut',  label: 'Manutenção Frota',   icon: '🔩' },
+      { key: 'veiculos',  label: 'Veículos',           icon: '🚗' },
+      { key: 'frota-km',  label: 'Controle Diário KM', icon: '📍' },
     ],
   },
   {
     id: 'financeiro',
     label: 'FINANCEIRO',
     items: [
-      { key: 'invoices',  label: 'Faturamento (NF)',    icon: '📃' },
-      { key: 'caixa',     label: 'Caixa',               icon: '💰' },
-      { key: 'contas',    label: 'Contas Bancárias',    icon: '🏦' },
-      { key: 'previsao',  label: 'Previsão Pagamentos', icon: '📅' },
-      { key: 'despesas',  label: 'Despesas',            icon: '💸' },
+      { key: 'invoices',  label: 'Contas a Receber',   icon: '📃' },
+      { key: 'despesas',  label: 'Contas a Pagar',     icon: '💸' },
+      { key: 'previsao',  label: 'Previsão Pagamentos',icon: '📅' },
+      { key: 'contas',    label: 'Contas Bancárias',   icon: '🏦' },
     ],
   },
   {
     id: 'rh',
     label: 'RH',
     items: [
-      { key: 'cronograma', label: 'Cronograma',         icon: '📆' },
-      { key: 'ponto',      label: 'Controle de Ponto',  icon: '⏰' },
-      { key: 'folha',      label: 'Folha de Pagamento', icon: '💼' },
+      { key: 'ponto',  label: 'Controle de Ponto',  icon: '⏰' },
+      { key: 'folha',  label: 'Folha de Pagamento', icon: '💼' },
     ],
   },
   {

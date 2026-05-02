@@ -79,7 +79,7 @@ export default function Despesas() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Despesas</h1>
+        <h1 className="page-title">Contas a Pagar</h1>
         <button className="btn btn-primary" onClick={openNew}>+ Nova Despesa</button>
       </div>
 

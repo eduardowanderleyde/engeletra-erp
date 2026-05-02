@@ -61,7 +61,7 @@ function TabEquipamentos() {
         <table>
           <thead>
             <tr>
-              <th>Tipo</th><th>Série</th><th>Potência</th><th>Tensão</th>
+              <th>Nome do Equipamento</th><th>Série</th><th>Potência</th><th>Tensão</th>
               <th>Fabricante</th><th>Ano</th><th>Cliente</th><th>Localização</th>
               <th>Próx. Manutenção</th><th>Ações</th>
             </tr>
@@ -94,8 +94,8 @@ function TabEquipamentos() {
           <div className="modal-body">
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Tipo *</label>
-                <input className="form-input" value={form.tipo} onChange={set('tipo')} placeholder="ex: Transformador" />
+                <label className="form-label">Nome do Equipamento *</label>
+                <input className="form-input" value={form.tipo} onChange={set('tipo')} placeholder="ex: Transformador 150 kVA" />
               </div>
               <div className="form-group">
                 <label className="form-label">Número de Série</label>
